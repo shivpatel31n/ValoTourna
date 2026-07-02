@@ -141,7 +141,17 @@ nav {
     background: transparent;
     color: var(--off);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-    transition: all .15s;
+    transition:
+    transform .2s,
+    background .2s,
+    color .2s,
+    border-color .2s;
+}
+
+.btn:hover{
+
+    transform:translateY(-3px);
+
 }
 
 .btn-primary {
@@ -352,12 +362,14 @@ section {
     border: 1px solid var(--steel);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
     padding: 26px;
-    transition: border-color .15s, transform .15s;
+    transition:
+        transform .2s ease,
+        border-color .2s ease;
 }
 
 .card:hover {
     border-color: var(--cyan);
-    transform: translateY(-3px);
+    transform: translateY(-6px) scale(1.02);
 }
 
 .card-top {

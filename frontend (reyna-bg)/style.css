@@ -163,8 +163,42 @@ nav {
     color: var(--cyan);
 }
 
+/* for Mobile Phone */
+.menu-btn{
+    display:none;
+    background:none;
+    border:none;
+    color:white;
+    font-size:28px;
+}
 
+.mobile-menu{
+    display:none;
+    flex-direction:column;
+    background:var(--panel);
+    border-top:1px solid var(--steel);
+}
 
+.mobile-menu a{
+    padding:18px 32px;
+    border-bottom:1px solid var(--steel);
+}
+
+@media(max-width:860px){
+
+    .nav-links{
+        display:none;
+    }
+
+    .menu-btn{
+        display:block;
+    }
+
+    .mobile-menu.active{
+        display:flex;
+    }
+
+}
 
 /* ---------- HERO ---------- */
 /* .hero {
@@ -381,6 +415,17 @@ section {
         #0B0D0F,
         #111417
     );
+}
+
+.reveal{
+    opacity:0;
+    transform:translateY(50px);
+    transition:all .7s ease;
+}
+
+.reveal.active{
+    opacity:1;
+    transform:translateY(0);
 }
 
 .section-head {
