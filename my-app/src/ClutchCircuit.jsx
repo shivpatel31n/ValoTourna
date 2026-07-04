@@ -206,7 +206,7 @@ export default function ClutchCircuit() {
         .cc-h1, .cc-h2, .cc-h3 { font-family: 'Rajdhani', sans-serif; text-transform: uppercase; letter-spacing: 0.02em; }
         .cc-mono { font-family: 'JetBrains Mono', monospace; }
         .cc-link { color: inherit; text-decoration: none; }
-        .cc-btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; font-size:14px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; border:1px solid ${TOKENS.steel}; background:transparent; color:${TOKENS.off}; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); transition: all .15s; cursor:pointer; }
+        .cc-btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; font-size:14px; font-weight:600; text-decoration: none; letter-spacing:0.03em; text-transform:uppercase; border:1px solid ${TOKENS.steel}; background:transparent; color:${TOKENS.off}; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); transition: all .15s; cursor:pointer; }
         .cc-btn-primary { background:${TOKENS.signal}; border-color:${TOKENS.signal}; color:#0B0D0F; }
         .cc-btn-primary:hover { background:#ff5a6b; }
         .cc-btn:not(.cc-btn-primary):hover { border-color:${TOKENS.cyan}; color:${TOKENS.cyan}; }
