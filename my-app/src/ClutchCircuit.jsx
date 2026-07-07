@@ -186,7 +186,7 @@ function Reveal({ children, as: Tag = "section", ...rest }) {
 }
 
 // ---------- MAIN COMPONENT ----------
-export default function ClutchCircuit() {
+export default function ClutchCircuit({ user, onLogout, onProfileClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
@@ -294,14 +294,33 @@ export default function ClutchCircuit() {
             <a className="cc-link" href="#discord">Discord</a>
           </div>
 
-          <a
+          {/* <a
             href={DISCORD_URL}
             target="_blank"
             rel="noreferrer"
             className="cc-btn cc-btn-primary"
           >
             Join Discord
-          </a>
+          </a> */}
+
+          {user ? (
+            <button
+              onClick={onLogout}
+              className="cc-btn"
+              // style={{ marginLeft: 12 }}
+            >
+              Log Out ({user.username})
+            </button>
+          ) : (
+            <button
+              onClick={onProfileClick}
+              className="cc-btn"
+              style={{ marginLeft: 12 }}
+            >
+              Profile
+            </button>
+          )}
+
         </nav>
 
         {menuOpen && (
