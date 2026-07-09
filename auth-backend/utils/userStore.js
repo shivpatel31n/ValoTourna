@@ -9,7 +9,11 @@ function readUsers() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, "[]");
   }
-  const raw = fs.readFileSync(DB_FILE, "utf-8");
+  let raw = fs.readFileSync(DB_FILE, "utf-8");
+  // Strip a UTF-8 BOM if present (some editors save files with it, which breaks JSON.parse)
+  if (raw.charCodeAt(0) === 0xfeff) {
+    raw = raw.slice(1);
+  }
   return JSON.parse(raw || "[]");
 }
 
