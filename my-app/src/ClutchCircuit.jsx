@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import reynaBg from "./assets/reyna.png"; // adjust path to wherever you place the image inside src/
+import reynaBg from "./assets/reyna.png";
+import { Link } from "react-router-dom";
 
 // ---------- DATA ----------
 const TOURNAMENTS = [
@@ -292,6 +293,7 @@ export default function ClutchCircuit({ user, onLogout, onProfileClick }) {
             <a className="cc-link" href="#teams">Teams</a>
             <a className="cc-link" href="#customs">Customs</a>
             <a className="cc-link" href="#discord">Discord</a>
+            <Link className="cc-link" to="/players">Find Players</Link>
           </div>
 
           {/* <a

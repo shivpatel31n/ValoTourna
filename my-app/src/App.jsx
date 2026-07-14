@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 import ClutchCircuit from "./ClutchCircuit";
 import AuthPage from "./AuthPage";
+import PlayersPage from "./PlayersPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -31,17 +33,23 @@ function App() {
     if (!user) {
       setShowAuth(true);
     }
-    // If user IS logged in, ClutchCircuit can show account info / dropdown instead —
-    // handled inside ClutchCircuit itself using the `user` prop.
   }
 
   return (
     <>
-      <ClutchCircuit
-        user={user}
-        onLogout={handleLogout}
-        onProfileClick={handleProfileClick}
-      />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ClutchCircuit
+              user={user}
+              onLogout={handleLogout}
+              onProfileClick={handleProfileClick}
+            />
+          }
+        />
+        <Route path="/players" element={<PlayersPage />} />
+      </Routes>
 
       {showAuth && (
         <AuthPage

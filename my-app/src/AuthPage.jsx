@@ -14,9 +14,22 @@ const TOKENS = {
 // Point this at wherever your Express server runs
 const API_BASE = "http://localhost:5000/api/auth";
 
+const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
+const RANKS = [
+  "Iron 1", "Iron 2", "Iron 3",
+  "Bronze 1", "Bronze 2", "Bronze 3",
+  "Silver 1", "Silver 2", "Silver 3",
+  "Gold 1", "Gold 2", "Gold 3",
+  "Platinum 1", "Platinum 2", "Platinum 3",
+  "Diamond 1", "Diamond 2", "Diamond 3",
+  "Ascendant 1", "Ascendant 2", "Ascendant 3",
+  "Immortal 1", "Immortal 2", "Immortal 3",
+  "Radiant",
+];
+
 export default function AuthPage({ onAuthSuccess, onClose }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [form, setForm] = useState({ username: "", email: "", password: "", rank: "", role: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -211,6 +224,53 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
                 required
                 style={inputStyle}
               />
+            </div>
+          )}
+
+          {isSignup && (
+            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label
+                  className="cc-auth-mono"
+                  style={{ fontSize: 11, color: TOKENS.mute, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}
+                >
+                  RANK
+                </label>
+                <select
+                  className="cc-auth-input"
+                  name="rank"
+                  value={form.rank}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                >
+                  <option value="" disabled>Select rank</option>
+                  {RANKS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label
+                  className="cc-auth-mono"
+                  style={{ fontSize: 11, color: TOKENS.mute, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}
+                >
+                  ROLE
+                </label>
+                <select
+                  className="cc-auth-input"
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                >
+                  <option value="" disabled>Select role</option>
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
