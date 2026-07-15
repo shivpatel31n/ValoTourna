@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getTournamentById } from "./tournamentsData";
 import { getRegistration, joinTournament, leaveTournament } from "./registrations";
@@ -52,9 +52,10 @@ function deadlineCountdown(iso) {
   if (diffMs <= 0) return null;
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
-  if (days > 0) return `${days}d ${hours}h left to register`;
   const mins = Math.floor((diffMs / (1000 * 60)) % 60);
-  return `${hours}h ${mins}m left to register`;
+  if (days > 0) return `${days}d ${hours}h left to register`;
+  if (hours > 0) return `${hours}h ${mins}m left to register`;
+  return `${mins}m left to register`;
 }
 
 export default function TournamentDetailPage({ user }) {
@@ -69,6 +70,14 @@ export default function TournamentDetailPage({ user }) {
   // Bumping this forces a re-render after join/leave, since registration
   // state lives outside React in localStorage rather than in props/state.
   const [, forceRefresh] = useState(0);
+
+  // Tick every 30s so the "time left to register" countdown (and the
+  // deadline-passed / isFull gating below) stays live without a manual
+  // page refresh.
+  useEffect(() => {
+    const interval = setInterval(() => forceRefresh((v) => v + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!tournament) {
     return (
