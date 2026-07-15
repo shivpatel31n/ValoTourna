@@ -1,14 +1,13 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import { findUserByEmail, createUser } from "../utils/userStore.js";
+import User from "../models/User.js";
 
 const router = Router();
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, username: user.username },
+    { id: user._id.toString(), email: user.email, username: user.username },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
@@ -17,7 +16,7 @@ function signToken(user) {
 // POST /api/auth/signup
 router.post("/signup", async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, rank, role } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "Username, email, and password are required." });
@@ -26,28 +25,32 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters." });
     }
 
-    const existing = findUserByEmail(email);
+    const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
       return res.status(409).json({ message: "An account with that email already exists." });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = {
-      id: crypto.randomUUID(),
+    const user = await User.create({
       username,
       email,
       passwordHash,
-      createdAt: new Date().toISOString(),
-    };
-
-    createUser(user);
+      rank: rank || "",
+      role: role || "",
+    });
 
     const token = signToken(user);
     return res.status(201).json({
       token,
-      user: { id: user.id, username: user.username, email: user.email },
+      user: { id: user._id.toString(), username: user.username, email: user.email, rank: user.rank, role: user.role },
     });
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "An account with that email already exists." });
+    }
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ message: err.message });
+    }
     console.error(err);
     return res.status(500).json({ message: "Something went wrong during signup." });
   }
@@ -62,7 +65,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Email and password are required." });
     }
 
-    const user = findUserByEmail(email);
+    const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
@@ -75,7 +78,7 @@ router.post("/login", async (req, res) => {
     const token = signToken(user);
     return res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email },
+      user: { id: user._id.toString(), username: user.username, email: user.email, rank: user.rank, role: user.role },
     });
   } catch (err) {
     console.error(err);
