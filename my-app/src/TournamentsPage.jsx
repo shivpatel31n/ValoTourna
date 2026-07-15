@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+
 import { useNavigate } from "react-router-dom";
-import { TOURNAMENTS } from "./tournamentsData";
+import React, { useState, useEffect } from "react";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -40,9 +40,17 @@ export default function TournamentsPage() {
   // TODO: swap for a real `fetch("/api/tournaments")` call once that
   // endpoint exists. Using local mock data for now so the join flow can be
   // built end to end.
-  const [tournaments] = useState(TOURNAMENTS);
-  const [loading] = useState(false);
-  const [error] = useState("");
+  const [tournaments, setTournaments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/tournaments")
+      .then((res) => res.json())
+      .then((data) => setTournaments(data.tournaments || []))
+      .catch(() => setError("Could not load tournaments. Is the backend running?"))
+      .finally(() => setLoading(false));
+  }, []);
   const [tab, setTab] = useState("upcoming"); // "upcoming" | "past"
 
   const upcoming = tournaments.filter((t) => t.status === "upcoming" || t.status === "live");
@@ -174,7 +182,7 @@ export default function TournamentsPage() {
                 }}
               >
                 <span className="tp-mono" style={{ color: TOKENS.mute }}>
-                  {t.teams.length}/{t.maxTeams} teams
+                   {t.teamsCount}/{t.maxTeams} teams
                 </span>
                 <span className="tp-mono" style={{ color: TOKENS.cyan }}>
                   {t.status === "past"

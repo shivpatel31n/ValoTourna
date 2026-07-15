@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { getTournamentById } from "./tournamentsData";
-import { getRegistration, joinTournament, leaveTournament } from "./registrations";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -13,6 +11,8 @@ const TOKENS = {
   off: "#E9EAEA",
   mute: "#8B9096",
 };
+
+const API_BASE = "http://localhost:5000/api/tournaments";
 
 function Badge({ status }) {
   const styles = {
@@ -61,25 +61,82 @@ function deadlineCountdown(iso) {
 export default function TournamentDetailPage({ user }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const tournament = getTournamentById(id);
+
+  const [tournament, setTournament] = useState(null);
+  const [loadingTournament, setLoadingTournament] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  const [registration, setRegistration] = useState(null);
+  const [loadingRegistration, setLoadingRegistration] = useState(false);
+
   const [modalOpen, setModalOpen] = useState(false);
-  const [joinType, setJoinType] = useState("solo"); // "solo" | "team"
+  const [joinType, setJoinType] = useState("solo");
   const [teamName, setTeamName] = useState("");
   const [teammates, setTeammates] = useState("");
   const [formError, setFormError] = useState("");
-  // Bumping this forces a re-render after join/leave, since registration
-  // state lives outside React in localStorage rather than in props/state.
+  const [submitting, setSubmitting] = useState(false);
+
   const [, forceRefresh] = useState(0);
 
-  // Tick every 30s so the "time left to register" countdown (and the
-  // deadline-passed / isFull gating below) stays live without a manual
-  // page refresh.
+  const token = localStorage.getItem("cc_token");
+
+  function loadTournament() {
+    setLoadingTournament(true);
+    setNotFound(false);
+    fetch(`${API_BASE}/${id}`)
+      .then((res) => {
+        if (res.status === 404) {
+          setNotFound(true);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data) setTournament(data.tournament);
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoadingTournament(false));
+  }
+
+  function loadRegistration() {
+    if (!user || !token) {
+      setRegistration(null);
+      return;
+    }
+    setLoadingRegistration(true);
+    fetch(`${API_BASE}/${id}/my-registration`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setRegistration(data.registration))
+      .catch(() => setRegistration(null))
+      .finally(() => setLoadingRegistration(false));
+  }
+
+  useEffect(() => {
+    loadTournament();
+    loadRegistration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
+
+  // Ticks every 30s so the "time left to register" countdown stays live.
   useEffect(() => {
     const interval = setInterval(() => forceRefresh((v) => v + 1), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!tournament) {
+  if (loadingTournament) {
+    return (
+      <div style={pageWrap}>
+        <style>{fontImport}</style>
+        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
+          <p style={{ color: TOKENS.mute }}>Loading tournament…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !tournament) {
     return (
       <div style={pageWrap}>
         <style>{fontImport}</style>
@@ -98,9 +155,8 @@ export default function TournamentDetailPage({ user }) {
     );
   }
 
-  const registration = getRegistration(user?.id, tournament.id);
-  const spotsFilled = tournament.teams.length + (registration ? 1 : 0);
-  const spotsLeft = tournament.maxTeams - spotsFilled;
+  const spotsFilled = tournament.teamsCount;
+  const spotsLeft = tournament.spotsLeft;
   const isFull = spotsLeft <= 0;
   const deadlinePassed = new Date(tournament.regDeadline).getTime() <= Date.now();
   const isPast = tournament.status === "past";
@@ -115,31 +171,57 @@ export default function TournamentDetailPage({ user }) {
     setModalOpen(true);
   }
 
-  function handleJoin(e) {
+  async function handleJoin(e) {
     e.preventDefault();
     if (joinType === "team" && !teamName.trim()) {
       setFormError("Give your team a name.");
       return;
     }
-    const entry =
-      joinType === "solo"
-        ? { type: "solo", displayName: user.username }
-        : {
-            type: "team",
-            teamName: teamName.trim(),
-            members: teammates
-              .split(",")
-              .map((n) => n.trim())
-              .filter(Boolean),
-          };
-    joinTournament(user.id, tournament.id, entry);
-    setModalOpen(false);
-    forceRefresh((v) => v + 1);
+    setSubmitting(true);
+    setFormError("");
+    try {
+      const body =
+        joinType === "solo"
+          ? { type: "solo" }
+          : {
+              type: "team",
+              teamName: teamName.trim(),
+              members: teammates.split(",").map((n) => n.trim()).filter(Boolean),
+            };
+
+      const res = await fetch(`${API_BASE}/${id}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not join this tournament.");
+
+      setRegistration(data.registration);
+      setModalOpen(false);
+      loadTournament(); // refresh spots-filled count
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function handleLeave() {
-    leaveTournament(user.id, tournament.id);
-    forceRefresh((v) => v + 1);
+  async function handleLeave() {
+    setSubmitting(true);
+    try {
+      await fetch(`${API_BASE}/${id}/register`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRegistration(null);
+      loadTournament();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -297,7 +379,9 @@ export default function TournamentDetailPage({ user }) {
               marginBottom: 60,
             }}
           >
-            {registration ? (
+            {loadingRegistration ? (
+              <p style={{ color: TOKENS.mute, fontSize: 14 }}>Checking your registration…</p>
+            ) : registration ? (
               <div>
                 <div className="td-mono" style={{ fontSize: 12, color: TOKENS.cyan, marginBottom: 10 }}>
                   YOU'RE REGISTERED
@@ -312,8 +396,8 @@ export default function TournamentDetailPage({ user }) {
                 <p style={{ color: TOKENS.mute, fontSize: 13, marginBottom: 18 }}>
                   Joined {formatDate(registration.joinedAt)}
                 </p>
-                <button onClick={handleLeave} className="td-btn">
-                  Leave tournament
+                <button onClick={handleLeave} className="td-btn" disabled={submitting}>
+                  {submitting ? "Leaving…" : "Leave tournament"}
                 </button>
               </div>
             ) : !user ? (
@@ -435,8 +519,8 @@ export default function TournamentDetailPage({ user }) {
               <button type="button" onClick={() => setModalOpen(false)} className="td-btn" style={{ flex: 1 }}>
                 Cancel
               </button>
-              <button type="submit" className="td-btn td-btn-primary" style={{ flex: 1 }}>
-                Confirm
+              <button type="submit" className="td-btn td-btn-primary" style={{ flex: 1 }} disabled={submitting}>
+                {submitting ? "Joining…" : "Confirm"}
               </button>
             </div>
           </form>
