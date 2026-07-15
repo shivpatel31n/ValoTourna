@@ -1,51 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import reynaBg from "./assets/reyna.png"; // adjust path to wherever you place the image inside src/
+import reynaBg from "./assets/reyna.png";
+import { Link } from "react-router-dom";
+import { TOURNAMENTS } from "./tournamentsData";
 
-// ---------- DATA ----------
-const TOURNAMENTS = [
-  {
-    title: "Weekend Ignition Cup",
-    status: "Open",
-    format: "5v5 — Single elimination — Bo1",
-    date: "Starts Jul 6",
-    teams: "32/64 Teams",
-  },
-  {
-    title: "Premier Feeder Series",
-    status: "Live",
-    format: "5v5 — Group stage — Bo3",
-    date: "Round 3 of 5",
-    teams: "16 Teams",
-  },
-  {
-    title: "Skirmish Ascension",
-    status: "Open",
-    format: "2v2 — Swiss — Bo1",
-    date: "Starts Jul 12",
-    teams: "21/48 Duos",
-  },
-  {
-    title: "Off-Angle Invitational",
-    status: "Closed",
-    format: "5v5 — Single elimination — Bo3",
-    date: "Ended Jun 21",
-    teams: "Champion: Nullpoint",
-  },
-  {
-    title: "Rookie Rush",
-    status: "Open",
-    format: "5v5 — Under Diamond — Bo1",
-    date: "Starts Jul 9",
-    teams: "9/32 Teams",
-  },
-  {
-    title: "Late Night Customs Cup",
-    status: "Open",
-    format: "5v5 — Round Robin — Bo1",
-    date: "Starts Jul 8",
-    teams: "12/20 Teams",
-  },
-];
+// Homepage only teases upcoming/live tournaments — full list + past results
+// live on the /tournaments page.
+const FEATURED_TOURNAMENTS = TOURNAMENTS.filter((t) => t.status !== "past").slice(0, 6);
 
 const DISCORD_URL = "https://discord.gg/7RCDt277Y";
 
@@ -64,11 +24,10 @@ const TOKENS = {
 // ---------- SMALL PRESENTATIONAL PIECES ----------
 
 function Badge({ status }) {
-  const key = status.toLowerCase();
   const styles = {
-    open: { background: "rgba(62, 214, 197, 0.12)", color: TOKENS.cyan },
+    upcoming: { background: "rgba(62, 214, 197, 0.12)", color: TOKENS.cyan },
     live: { background: "rgba(217, 58, 103, 0.14)", color: TOKENS.signal },
-    closed: { background: "rgba(139, 144, 150, 0.12)", color: TOKENS.mute },
+    past: { background: "rgba(139, 144, 150, 0.12)", color: TOKENS.mute },
   };
   return (
     <span
@@ -78,7 +37,7 @@ function Badge({ status }) {
         letterSpacing: "0.05em",
         padding: "4px 10px",
         textTransform: "uppercase",
-        ...styles[key],
+        ...styles[status],
       }}
     >
       {status}
@@ -88,11 +47,21 @@ function Badge({ status }) {
 
 function TournamentCard({ t }) {
   const [hover, setHover] = useState(false);
+  const spotsLabel = `${t.teams.length}/${t.maxTeams} ${t.teamSize === 1 ? "players" : "teams"}`;
+  const dateLabel =
+    t.status === "live"
+      ? "In progress"
+      : `Starts ${new Date(t.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+
   return (
-    <div
+    <Link
+      to={`/tournaments/${t.id}`}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        display: "block",
+        textDecoration: "none",
+        color: "inherit",
         background: TOKENS.panel,
         border: `1px solid ${hover ? TOKENS.cyan : TOKENS.steel}`,
         clipPath:
@@ -133,7 +102,7 @@ function TournamentCard({ t }) {
             color: TOKENS.mute,
           }}
         >
-          {t.date}
+          {dateLabel}
         </span>
         <span
           style={{
@@ -142,10 +111,10 @@ function TournamentCard({ t }) {
             color: TOKENS.mute,
           }}
         >
-          {t.teams}
+          {spotsLabel}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -292,6 +261,7 @@ export default function ClutchCircuit({ user, onLogout, onProfileClick }) {
             <a className="cc-link" href="#teams">Teams</a>
             <a className="cc-link" href="#customs">Customs</a>
             <a className="cc-link" href="#discord">Discord</a>
+            <Link className="cc-link" to="/players">Find Players</Link>
           </div>
 
           {/* <a
@@ -514,9 +484,15 @@ export default function ClutchCircuit({ user, onLogout, onProfileClick }) {
           </div>
 
           <div className="cc-grid">
-            {TOURNAMENTS.map((t) => (
-              <TournamentCard key={t.title} t={t} />
+            {FEATURED_TOURNAMENTS.map((t) => (
+              <TournamentCard key={t.id} t={t} />
             ))}
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: 40 }}>
+            <Link to="/tournaments" className="cc-btn">
+              View all tournaments
+            </Link>
           </div>
         </div>
       </section>
