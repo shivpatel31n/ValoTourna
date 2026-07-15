@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import ClutchCircuit from "./ClutchCircuit.jsx";
 import AuthPage from "./AuthPage.jsx";
 import PlayersPage from "./PlayersPage";
 import TournamentsPage from "./TournamentsPage.jsx";
 import TournamentDetailPage from "./TournamentDetailPage.jsx";
+import ProfilePage from "./ProfilePage.jsx";
 
 function App() {
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+  const navigate = useNavigate();
 
-  // Restore login from localStorage on page load/refresh
   useEffect(() => {
     const token = localStorage.getItem("cc_token");
     const savedUser = localStorage.getItem("cc_user");
@@ -31,10 +32,16 @@ function App() {
   }
 
   // Called by the "Profile" button in the navbar
+  // function handleProfileClick() {
+  //   if (!user) {
+  //     setShowAuth(true);
+  //   } else {
+  //     navigate("/profile");
+  //   }
+  // }
+
   function handleProfileClick() {
-    if (!user) {
-      setShowAuth(true);
-    }
+    navigate("/profile");
   }
 
   return (
@@ -53,6 +60,10 @@ function App() {
         <Route path="/players" element={<PlayersPage />} />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/tournaments/:id" element={<TournamentDetailPage user={user} />} />
+        <Route
+          path="/profile"
+          element={<ProfilePage user={user} onRequireAuth={() => setShowAuth(true)} onLogout={handleLogout} />}
+        />
       </Routes>
 
       {showAuth && (

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
+const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
 
 const userSchema = new mongoose.Schema(
   {
@@ -33,6 +34,11 @@ const userSchema = new mongoose.Schema(
       enum: [...ROLES, ""],
       default: "",
     },
+    region: {
+      type: String,
+      enum: [...REGIONS, ""],
+      default: "",
+    },
     lookingForTeam: {
       type: Boolean,
       default: true,
@@ -45,7 +51,7 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
-        delete ret.passwordHash; // never leak this to the client
+        delete ret.passwordHash;
       },
     },
   }
