@@ -24,10 +24,26 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    riotName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    riotTag: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    // Derived automatically from riotName#riotTag via the HenrikDev API —
+    // never accepted directly from the signup form.
     rank: {
       type: String,
       trim: true,
-      default: "",
+      default: "Unranked",
+    },
+    rankUpdatedAt: {
+      type: Date,
+      default: null,
     },
     role: {
       type: String,

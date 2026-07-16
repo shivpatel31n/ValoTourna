@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { fetchRiotRank } from "../services/riotRank.js";
 
 const router = Router();
 
@@ -16,10 +17,12 @@ function signToken(user) {
 // POST /api/auth/signup
 router.post("/signup", async (req, res) => {
   try {
-    const { username, email, password, rank, role } = req.body;
+    const { username, email, password, riotName, riotTag, role } = req.body;
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: "Username, email, and password are required." });
+    if (!username || !email || !password || !riotName || !riotTag) {
+      return res.status(400).json({
+        message: "Username, email, password, and Riot ID (name + tagline) are required.",
+      });
     }
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters." });
@@ -30,19 +33,41 @@ router.post("/signup", async (req, res) => {
       return res.status(409).json({ message: "An account with that email already exists." });
     }
 
+    // Look up the player's current rank (and region) from their Riot ID
+    // instead of trusting a self-reported value.
+    let rank, region;
+    try {
+      ({ rank, region } = await fetchRiotRank(riotName, riotTag));
+    } catch (riotErr) {
+      return res.status(400).json({ message: riotErr.message });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       username,
       email,
       passwordHash,
-      rank: rank || "",
+      riotName: riotName.trim(),
+      riotTag: riotTag.trim().replace(/^#/, ""),
+      region,
+      rank,
+      rankUpdatedAt: new Date(),
       role: role || "",
     });
 
     const token = signToken(user);
     return res.status(201).json({
       token,
-      user: { id: user._id.toString(), username: user.username, email: user.email, rank: user.rank, role: user.role },
+      user: {
+        id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        riotName: user.riotName,
+        riotTag: user.riotTag,
+        region: user.region,
+        rank: user.rank,
+        role: user.role,
+      },
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -78,7 +103,16 @@ router.post("/login", async (req, res) => {
     const token = signToken(user);
     return res.json({
       token,
-      user: { id: user._id.toString(), username: user.username, email: user.email, rank: user.rank, role: user.role },
+      user: {
+        id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        riotName: user.riotName,
+        riotTag: user.riotTag,
+        region: user.region,
+        rank: user.rank,
+        role: user.role,
+      },
     });
   } catch (err) {
     console.error(err);

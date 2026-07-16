@@ -13,20 +13,9 @@ const TOKENS = {
 };
 
 const API_BASE = "http://localhost:5000/api/players";
+const TOURNAMENTS_API_BASE = "http://localhost:5000/api/tournaments";
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
-const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
-const RANKS = [
-  "Iron 1", "Iron 2", "Iron 3",
-  "Bronze 1", "Bronze 2", "Bronze 3",
-  "Silver 1", "Silver 2", "Silver 3",
-  "Gold 1", "Gold 2", "Gold 3",
-  "Platinum 1", "Platinum 2", "Platinum 3",
-  "Diamond 1", "Diamond 2", "Diamond 3",
-  "Ascendant 1", "Ascendant 2", "Ascendant 3",
-  "Immortal 1", "Immortal 2", "Immortal 3",
-  "Radiant",
-];
 
 function authHeaders() {
   const token = localStorage.getItem("cc_token");
@@ -41,7 +30,9 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ rank: "", role: "", region: "", lookingForTeam: true });
+  const [refreshing, setRefreshing] = useState(false);
+  const [form, setForm] = useState({ role: "", lookingForTeam: true });
+  const [respondingSlug, setRespondingSlug] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -66,9 +57,7 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
 
       setProfile(profileData.player);
       setForm({
-        rank: profileData.player.rank || "",
         role: profileData.player.role || "",
-        region: profileData.player.region || "",
         lookingForTeam: profileData.player.lookingForTeam,
       });
       setHistory(historyData.history || []);
@@ -102,6 +91,43 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRefreshRank() {
+    setRefreshing(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/me/refresh-rank`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not refresh rank.");
+      setProfile(data.player);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleInviteResponse(slug, accept) {
+    setRespondingSlug(slug);
+    setError("");
+    try {
+      const res = await fetch(`${TOURNAMENTS_API_BASE}/${slug}/register/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ accept }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not respond to invite.");
+      loadProfile();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRespondingSlug(null);
     }
   }
 
@@ -248,42 +274,40 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <h2 className="pf-h" style={{ fontSize: 18 }}>Player Info</h2>
-                {!editing && (
-                  <button onClick={() => setEditing(true)} style={editButtonStyle}>
-                    Edit
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={handleRefreshRank} disabled={refreshing} style={editButtonStyle}>
+                    {refreshing ? "Refreshing…" : "Refresh Rank"}
                   </button>
-                )}
+                  {!editing && (
+                    <button onClick={() => setEditing(true)} style={editButtonStyle}>
+                      Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Rank and region come from the player's Riot ID (fetched via
+                  the Riot lookup service) and can't be edited by hand — use
+                  "Refresh Rank" to re-pull the latest value. */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: editing ? 20 : 0 }}>
+                <Field label="RIOT ID" value={profile.riotName ? `${profile.riotName}#${profile.riotTag}` : "Not set"} />
+                <Field label="RANK" value={profile.rank || "Unranked"} accent />
+                <Field label="REGION" value={profile.region || "Not set"} />
               </div>
 
               {!editing ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }}>
-                  <Field label="RANK" value={profile.rank || "Unranked"} accent />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginTop: 16 }}>
                   <Field label="ROLE" value={profile.role || "Not set"} />
-                  <Field label="REGION" value={profile.region || "Not set"} />
                   <Field label="LOOKING FOR TEAM" value={profile.lookingForTeam ? "Yes" : "No"} />
                 </div>
               ) : (
                 <form onSubmit={handleSave}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 20 }}>
                     <div>
-                      <label className="pf-mono" style={labelStyle}>RANK</label>
-                      <select className="pf-select" name="rank" value={form.rank} onChange={handleChange} style={inputStyle}>
-                        <option value="">Unranked</option>
-                        {RANKS.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
                       <label className="pf-mono" style={labelStyle}>ROLE</label>
                       <select className="pf-select" name="role" value={form.role} onChange={handleChange} style={inputStyle}>
                         <option value="">Not set</option>
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="pf-mono" style={labelStyle}>REGION</label>
-                      <select className="pf-select" name="region" value={form.region} onChange={handleChange} style={inputStyle}>
-                        <option value="">Not set</option>
-                        {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
                     <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
@@ -312,65 +336,113 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
               )}
             </div>
 
+            {history.some((h) => h.registration.status === "pending") && (
+              <>
+                <h2 className="pf-h" style={{ fontSize: 18, marginBottom: 16 }}>
+                  Pending Invites
+                </h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+                  {history
+                    .filter((h) => h.registration.status === "pending")
+                    .map((h) => (
+                      <div
+                        key={h.registration.id}
+                        className="pf-card"
+                        style={{
+                          background: TOKENS.panel,
+                          border: `1px solid ${TOKENS.signal}`,
+                          padding: 18,
+                        }}
+                      >
+                        <div className="pf-h" style={{ fontSize: 16, marginBottom: 4 }}>
+                          {h.tournament.title}
+                        </div>
+                        <div className="pf-mono" style={{ fontSize: 12, color: TOKENS.mute, marginBottom: 14 }}>
+                          Invited to team "{h.registration.teamName}"
+                        </div>
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <button
+                            onClick={() => handleInviteResponse(h.tournament.id, true)}
+                            disabled={respondingSlug === h.tournament.id}
+                            style={saveButtonStyle}
+                          >
+                            {respondingSlug === h.tournament.id ? "Please wait…" : "Accept"}
+                          </button>
+                          <button
+                            onClick={() => handleInviteResponse(h.tournament.id, false)}
+                            disabled={respondingSlug === h.tournament.id}
+                            style={cancelButtonStyle}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
+
             <h2 className="pf-h" style={{ fontSize: 18, marginBottom: 16 }}>
               Tournament History
             </h2>
 
-            {history.length === 0 && (
+            {history.filter((h) => h.registration.status !== "pending").length === 0 && (
               <p style={{ color: TOKENS.mute, fontSize: 14 }}>
                 You haven't joined any tournaments yet.
               </p>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {history.map((h) => (
-                <div
-                  key={h.registration.id}
-                  className="pf-card"
-                  style={{
-                    background: TOKENS.panel,
-                    border: `1px solid ${TOKENS.steel}`,
-                    padding: 18,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  <div>
-                    <div
-                      className="pf-h"
-                      style={{ fontSize: 16, cursor: "pointer" }}
-                      onClick={() => navigate(`/tournaments/${h.tournament.id}`)}
-                    >
-                      {h.tournament.title}
-                    </div>
-                    <div className="pf-mono" style={{ fontSize: 12, color: TOKENS.mute, marginTop: 4 }}>
-                      {h.registration.type === "team" ? h.registration.teamName || "Team entry" : "Solo entry"}
-                      {" · "}
-                      {new Date(h.tournament.startDate).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <span
-                    className="pf-mono"
+              {history
+                .filter((h) => h.registration.status !== "pending")
+                .map((h) => (
+                  <div
+                    key={h.registration.id}
+                    className="pf-card"
                     style={{
-                      fontSize: 11,
-                      textTransform: "uppercase",
-                      color:
-                        h.tournament.status === "live"
-                          ? TOKENS.signal
-                          : h.tournament.status === "upcoming"
-                          ? TOKENS.cyan
-                          : TOKENS.mute,
+                      background: TOKENS.panel,
                       border: `1px solid ${TOKENS.steel}`,
-                      padding: "4px 10px",
+                      padding: 18,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 8,
                     }}
                   >
-                    {h.tournament.status}
-                  </span>
-                </div>
-              ))}
+                    <div>
+                      <div
+                        className="pf-h"
+                        style={{ fontSize: 16, cursor: "pointer" }}
+                        onClick={() => navigate(`/tournaments/${h.tournament.id}`)}
+                      >
+                        {h.tournament.title}
+                      </div>
+                      <div className="pf-mono" style={{ fontSize: 12, color: TOKENS.mute, marginTop: 4 }}>
+                        {h.registration.type === "team" ? h.registration.teamName || "Team entry" : "Solo entry"}
+                        {" · "}
+                        {new Date(h.tournament.startDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <span
+                      className="pf-mono"
+                      style={{
+                        fontSize: 11,
+                        textTransform: "uppercase",
+                        color:
+                          h.tournament.status === "live"
+                            ? TOKENS.signal
+                            : h.tournament.status === "upcoming"
+                            ? TOKENS.cyan
+                            : TOKENS.mute,
+                        border: `1px solid ${TOKENS.steel}`,
+                        padding: "4px 10px",
+                      }}
+                    >
+                      {h.tournament.status}
+                    </span>
+                  </div>
+                ))}
             </div>
           </>
         )}

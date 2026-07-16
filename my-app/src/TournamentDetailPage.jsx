@@ -67,14 +67,16 @@ export default function TournamentDetailPage({ user }) {
   const [notFound, setNotFound] = useState(false);
 
   const [registration, setRegistration] = useState(null);
+  const [roster, setRoster] = useState([]);
   const [loadingRegistration, setLoadingRegistration] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [joinType, setJoinType] = useState("solo");
   const [teamName, setTeamName] = useState("");
-  const [teammates, setTeammates] = useState("");
+  const [teammateInput, setTeammateInput] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [respondingInvite, setRespondingInvite] = useState(false);
 
   const [, forceRefresh] = useState(0);
 
@@ -101,6 +103,7 @@ export default function TournamentDetailPage({ user }) {
   function loadRegistration() {
     if (!user || !token) {
       setRegistration(null);
+      setRoster([]);
       return;
     }
     setLoadingRegistration(true);
@@ -108,8 +111,14 @@ export default function TournamentDetailPage({ user }) {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setRegistration(data.registration))
-      .catch(() => setRegistration(null))
+      .then((data) => {
+        setRegistration(data.registration);
+        setRoster(data.roster || []);
+      })
+      .catch(() => {
+        setRegistration(null);
+        setRoster([]);
+      })
       .finally(() => setLoadingRegistration(false));
   }
 
@@ -162,11 +171,13 @@ export default function TournamentDetailPage({ user }) {
   const isPast = tournament.status === "past";
   const canJoin = !isPast && !deadlinePassed && !isFull && !registration;
   const countdown = !isPast ? deadlineCountdown(tournament.regDeadline) : null;
+  const requiredTeamSize = tournament.teamSize;
+  const isPendingInvite = registration && registration.status === "pending";
 
   function openModal() {
     setJoinType("solo");
     setTeamName("");
-    setTeammates("");
+    setTeammateInput("");
     setFormError("");
     setModalOpen(true);
   }
@@ -186,7 +197,10 @@ export default function TournamentDetailPage({ user }) {
           : {
               type: "team",
               teamName: teamName.trim(),
-              members: teammates.split(",").map((n) => n.trim()).filter(Boolean),
+              teammateUsernames: teammateInput
+                .split(",")
+                .map((n) => n.trim())
+                .filter(Boolean),
             };
 
       const res = await fetch(`${API_BASE}/${id}/register`, {
@@ -200,9 +214,9 @@ export default function TournamentDetailPage({ user }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Could not join this tournament.");
 
-      setRegistration(data.registration);
       setModalOpen(false);
-      loadTournament(); // refresh spots-filled count
+      loadTournament();
+      loadRegistration();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -218,9 +232,32 @@ export default function TournamentDetailPage({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRegistration(null);
+      setRoster([]);
       loadTournament();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleInviteResponse(accept) {
+    setRespondingInvite(true);
+    try {
+      const res = await fetch(`${API_BASE}/${id}/register/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ accept }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not respond to invite.");
+      loadTournament();
+      loadRegistration();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setRespondingInvite(false);
     }
   }
 
@@ -381,6 +418,37 @@ export default function TournamentDetailPage({ user }) {
           >
             {loadingRegistration ? (
               <p style={{ color: TOKENS.mute, fontSize: 14 }}>Checking your registration…</p>
+            ) : isPendingInvite ? (
+              <div>
+                <div className="td-mono" style={{ fontSize: 12, color: TOKENS.signal, marginBottom: 10 }}>
+                  TEAM INVITE PENDING
+                </div>
+                <p style={{ color: TOKENS.off, fontSize: 15, marginBottom: 4 }}>
+                  You've been invited to join <strong>"{registration.teamName}"</strong>.
+                </p>
+                {roster.length > 0 && (
+                  <RosterList roster={roster} style={{ marginTop: 14, marginBottom: 18 }} />
+                )}
+                {formError && (
+                  <div style={{ color: TOKENS.signal, fontSize: 13, marginBottom: 14 }}>{formError}</div>
+                )}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => handleInviteResponse(true)}
+                    className="td-btn td-btn-primary"
+                    disabled={respondingInvite}
+                  >
+                    {respondingInvite ? "Please wait…" : "Accept invite"}
+                  </button>
+                  <button
+                    onClick={() => handleInviteResponse(false)}
+                    className="td-btn"
+                    disabled={respondingInvite}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
             ) : registration ? (
               <div>
                 <div className="td-mono" style={{ fontSize: 12, color: TOKENS.cyan, marginBottom: 10 }}>
@@ -389,15 +457,18 @@ export default function TournamentDetailPage({ user }) {
                 <p style={{ color: TOKENS.off, fontSize: 15, marginBottom: 4 }}>
                   {registration.type === "solo"
                     ? `Registered as a free agent (${registration.displayName})`
-                    : `Team "${registration.teamName}" registered${
-                        registration.members.length ? ` with ${registration.members.join(", ")}` : ""
-                      }`}
+                    : `Team "${registration.teamName}"${registration.isCaptain ? " — you're the captain" : ""}`}
                 </p>
-                <p style={{ color: TOKENS.mute, fontSize: 13, marginBottom: 18 }}>
+                <p style={{ color: TOKENS.mute, fontSize: 13, marginBottom: 14 }}>
                   Joined {formatDate(registration.joinedAt)}
                 </p>
+                {roster.length > 0 && <RosterList roster={roster} style={{ marginBottom: 18 }} />}
                 <button onClick={handleLeave} className="td-btn" disabled={submitting}>
-                  {submitting ? "Leaving…" : "Leave tournament"}
+                  {submitting
+                    ? "Leaving…"
+                    : registration.type === "team" && registration.isCaptain
+                    ? "Disband team"
+                    : "Leave tournament"}
                 </button>
               </div>
             ) : !user ? (
@@ -410,7 +481,7 @@ export default function TournamentDetailPage({ user }) {
             ) : canJoin ? (
               <div>
                 <p style={{ color: TOKENS.off, fontSize: 15, marginBottom: 18 }}>
-                  Ready to lock in? Join solo as a free agent or register your full team.
+                  Ready to lock in? Join solo as a free agent or invite your team.
                 </p>
                 <button onClick={openModal} className="td-btn td-btn-primary">
                   Join tournament
@@ -474,7 +545,7 @@ export default function TournamentDetailPage({ user }) {
                     color: joinType === t ? TOKENS.cyan : TOKENS.mute,
                   }}
                 >
-                  {t === "solo" ? "Join solo" : "Join with team"}
+                  {t === "solo" ? "Join solo" : "Invite team"}
                 </button>
               ))}
             </div>
@@ -497,17 +568,24 @@ export default function TournamentDetailPage({ user }) {
                     style={inputStyle}
                   />
                 </div>
-                <div style={{ marginBottom: 22 }}>
+                <div style={{ marginBottom: 10 }}>
                   <label className="td-mono" style={labelStyle}>
-                    TEAMMATES (comma separated, optional for now)
+                    TEAMMATE USERNAMES (comma separated)
                   </label>
                   <input
-                    value={teammates}
-                    onChange={(e) => setTeammates(e.target.value)}
+                    value={teammateInput}
+                    onChange={(e) => setTeammateInput(e.target.value)}
                     placeholder="playerTwo, playerThree, playerFour"
                     style={inputStyle}
                   />
                 </div>
+                <p style={{ color: TOKENS.mute, fontSize: 12.5, marginBottom: 22, lineHeight: 1.6 }}>
+                  Each name must be an existing registered username. They'll get a pending invite and won't
+                  count toward your roster until they accept.
+                  {requiredTeamSize > 1 && (
+                    <> This tournament requires exactly <strong style={{ color: TOKENS.off }}>{requiredTeamSize}</strong> players total (including you).</>
+                  )}
+                </p>
               </>
             )}
 
@@ -520,12 +598,56 @@ export default function TournamentDetailPage({ user }) {
                 Cancel
               </button>
               <button type="submit" className="td-btn td-btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                {submitting ? "Joining…" : "Confirm"}
+                {submitting ? "Sending…" : "Confirm"}
               </button>
             </div>
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+function RosterList({ roster, style }) {
+  return (
+    <div style={{ ...style }}>
+      <div className="td-mono" style={{ fontSize: 11, color: TOKENS.mute, marginBottom: 8, letterSpacing: "0.05em" }}>
+        ROSTER
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {roster.map((m) => (
+          <div
+            key={m.displayName}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "8px 12px",
+              background: TOKENS.panel2,
+              fontSize: 13.5,
+            }}
+          >
+            <span style={{ color: TOKENS.off }}>
+              {m.displayName}
+              {m.isCaptain && (
+                <span className="td-mono" style={{ color: TOKENS.cyan, fontSize: 11, marginLeft: 8 }}>
+                  CAPTAIN
+                </span>
+              )}
+            </span>
+            <span
+              className="td-mono"
+              style={{
+                fontSize: 10.5,
+                textTransform: "uppercase",
+                color: m.status === "confirmed" ? TOKENS.cyan : TOKENS.mute,
+              }}
+            >
+              {m.status}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

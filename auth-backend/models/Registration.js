@@ -7,7 +7,11 @@ const registrationSchema = new mongoose.Schema(
     type: { type: String, enum: ["solo", "team"], required: true },
     displayName: { type: String, trim: true, default: "" },
     teamName: { type: String, trim: true, default: "" },
-    members: { type: [String], default: [] },
+    teamId: { type: String, default: null }, // shared across all members of one team
+    isCaptain: { type: Boolean, default: false },
+    status: { type: String, enum: ["confirmed", "pending"], default: "confirmed" },
+    invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    members: { type: [String], default: [] }, // kept for backward compat / display only
     joinedAt: { type: Date, default: Date.now },
   },
   {
@@ -22,7 +26,6 @@ const registrationSchema = new mongoose.Schema(
   }
 );
 
-// one registration per user per tournament
 registrationSchema.index({ tournament: 1, user: 1 }, { unique: true });
 
 export default mongoose.model("Registration", registrationSchema);
