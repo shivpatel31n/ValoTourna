@@ -22,6 +22,24 @@ function serializeUser(user) {
   };
 }
 
+// GET /api/players?rank=Immortal 1&role=Duelist&region=NA
+router.get("/", async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.rank) filter.rank = req.query.rank;
+    if (req.query.role) filter.role = req.query.role;
+    if (req.query.region) filter.region = req.query.region;
+
+    const users = await User.find(filter).sort({ createdAt: -1 });
+    const players = users.map(serializeUser);
+
+    res.status(200).json({ players });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch players." });
+  }
+});
+
 // GET /api/players/me
 router.get("/me", requireAuth, async (req, res) => {
   try {
