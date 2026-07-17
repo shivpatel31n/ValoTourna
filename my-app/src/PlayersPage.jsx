@@ -13,8 +13,10 @@ const TOKENS = {
 };
 
 const API_BASE = "http://localhost:5000/api/players";
+const DISCORD_URL = "https://discord.gg/7RCDt277Y";
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
+const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
 const RANKS = [
   "Iron 1", "Iron 2", "Iron 3",
   "Bronze 1", "Bronze 2", "Bronze 3",
@@ -34,11 +36,12 @@ export default function PlayersPage() {
   const [error, setError] = useState("");
   const [rankFilter, setRankFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
 
   useEffect(() => {
     fetchPlayers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rankFilter, roleFilter]);
+  }, [rankFilter, roleFilter, regionFilter]);
 
   async function fetchPlayers() {
     setLoading(true);
@@ -47,6 +50,7 @@ export default function PlayersPage() {
       const params = new URLSearchParams();
       if (rankFilter) params.set("rank", rankFilter);
       if (roleFilter) params.set("role", roleFilter);
+      if (regionFilter) params.set("region", regionFilter);
 
       const res = await fetch(`${API_BASE}?${params.toString()}`);
       if (!res.ok) throw new Error("Could not load players.");
@@ -92,9 +96,48 @@ export default function PlayersPage() {
         <h1 className="pp-h" style={{ fontSize: 36, marginBottom: 8 }}>
           Find Players
         </h1>
-        <p style={{ color: TOKENS.mute, fontSize: 15, marginBottom: 34, maxWidth: 520 }}>
+        <p style={{ color: TOKENS.mute, fontSize: 15, marginBottom: 20, maxWidth: 520 }}>
           Browse the community by rank and role to find teammates who match your level.
         </p>
+
+        <a
+          href={DISCORD_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="pp-mono"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            background: "rgba(62, 214, 197, 0.08)",
+            border: `1px solid ${TOKENS.cyan}`,
+            color: TOKENS.off,
+            padding: "14px 20px",
+            marginBottom: 34,
+            textDecoration: "none",
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 13, lineHeight: 1.5 }}>
+            Want to play together? Send a friend request using their Riot ID below, then{" "}
+            <strong style={{ color: TOKENS.cyan }}>join our Discord</strong> to actually link up —
+            that's where everyone finds people with the same rank and interests to grind with.
+          </span>
+          <span
+            style={{
+              flexShrink: 0,
+              background: TOKENS.cyan,
+              color: TOKENS.ink,
+              padding: "8px 16px",
+              fontSize: 12,
+              textTransform: "uppercase",
+              fontWeight: 600,
+            }}
+          >
+            Join Discord →
+          </span>
+        </a>
 
         {/* Filters */}
         <div style={{ display: "flex", gap: 16, marginBottom: 34, flexWrap: "wrap" }}>
@@ -130,11 +173,28 @@ export default function PlayersPage() {
               ))}
             </select>
           </div>
-          {(rankFilter || roleFilter) && (
+          <div>
+            <label className="pp-mono" style={{ fontSize: 11, color: TOKENS.mute, display: "block", marginBottom: 6 }}>
+              REGION
+            </label>
+            <select
+              className="pp-select"
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="">All regions</option>
+              {REGIONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          {(rankFilter || roleFilter || regionFilter) && (
             <button
               onClick={() => {
                 setRankFilter("");
                 setRoleFilter("");
+                setRegionFilter("");
               }}
               className="pp-mono"
               style={{
@@ -190,7 +250,7 @@ export default function PlayersPage() {
                 padding: 20,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <h3 className="pp-h" style={{ fontSize: 18 }}>{p.username}</h3>
                 {p.lookingForTeam && (
                   <span
@@ -207,13 +267,25 @@ export default function PlayersPage() {
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+              {p.riotName && (
+                <div
+                  className="pp-mono"
+                  style={{ fontSize: 13, color: TOKENS.off, marginBottom: 10, wordBreak: "break-all" }}
+                >
+                  {p.riotName}
+                  <span style={{ color: TOKENS.mute }}>#{p.riotTag}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                 <span className="pp-mono" style={{ color: TOKENS.mute }}>
                   {p.role || "No role set"}
                 </span>
                 <span className="pp-mono" style={{ color: TOKENS.cyan }}>
                   {p.rank || "Unranked"}
                 </span>
+              </div>
+              <div className="pp-mono" style={{ fontSize: 12, color: TOKENS.mute }}>
+                {p.region || "Region not set"}
               </div>
             </div>
           ))}
