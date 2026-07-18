@@ -258,7 +258,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
 
           <div className="cc-nav-links" style={{ display: "flex", gap: 36, alignItems: "center" }}>
             <a className="cc-link" href="#tournaments">Tournaments</a>
-            <a className="cc-link" href="#teams">Teams</a>
+            <Link className="cc-link" to="/teams">Teams</Link>
             <a className="cc-link" href="#customs">Customs</a>
             <a className="cc-link" href="#discord">Discord</a>
             <Link className="cc-link" to="/players">Find Players</Link>
@@ -292,21 +292,37 @@ export default function ClutchCircuit({ user, onProfileClick }) {
               borderTop: `1px solid ${TOKENS.steel}`,
             }}
           >
-            {["tournaments", "teams", "customs", "discord"].map((id) => (
-              <a
-                key={id}
-                className="cc-link"
-                href={`#${id}`}
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  padding: "18px 32px",
-                  borderBottom: `1px solid ${TOKENS.steel}`,
-                  textTransform: "capitalize",
-                }}
-              >
-                {id}
-              </a>
-            ))}
+            {["tournaments", "teams", "customs", "discord"].map((id) =>
+              id === "teams" ? (
+                <Link
+                  key={id}
+                  className="cc-link"
+                  to="/teams"
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    padding: "18px 32px",
+                    borderBottom: `1px solid ${TOKENS.steel}`,
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {id}
+                </Link>
+              ) : (
+                <a
+                  key={id}
+                  className="cc-link"
+                  href={`#${id}`}
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    padding: "18px 32px",
+                    borderBottom: `1px solid ${TOKENS.steel}`,
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {id}
+                </a>
+              )
+            )}
           </div>
         )}
       </header>
@@ -548,9 +564,9 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                   </li>
                 ))}
               </ul>
-              <a href="#discord" className="cc-btn cc-btn-primary">
+              <Link to="/teams/new" className="cc-btn cc-btn-primary">
                 Start a team
-              </a>
+              </Link>
             </div>
 
             <div

@@ -3,6 +3,9 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import ClutchCircuit from "./ClutchCircuit.jsx";
 import AuthPage from "./AuthPage.jsx";
 import PlayersPage from "./PlayersPage";
+import TeamsPage from "./TeamsPage.jsx";
+import TeamCreatePage from "./TeamCreatePage.jsx";
+import TeamDetailPage from "./TeamDetailPage.jsx";
 import TournamentsPage from "./TournamentsPage.jsx";
 import TournamentDetailPage from "./TournamentDetailPage.jsx";
 import ProfilePage from "./ProfilePage.jsx";
@@ -58,6 +61,18 @@ function App() {
           }
         />
         <Route path="/players" element={<PlayersPage />} />
+        <Route
+          path="/teams"
+          element={<TeamsPage user={user} onRequireAuth={() => setShowAuth(true)} />}
+        />
+        <Route
+          path="/teams/new"
+          element={<TeamCreatePage user={user} onRequireAuth={() => setShowAuth(true)} />}
+        />
+        <Route
+          path="/teams/:id"
+          element={<TeamDetailPage user={user} onRequireAuth={() => setShowAuth(true)} />}
+        />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/tournaments/:id" element={<TournamentDetailPage user={user} />} />
         <Route

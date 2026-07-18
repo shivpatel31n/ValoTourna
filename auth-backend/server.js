@@ -5,6 +5,7 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import playerRoutes from "./routes/players.js";
 import tournamentRoutes from "./routes/tournaments.js";
+import teamRoutes from "./routes/teams.js";
 import { requireAuth } from "./middleware/authMiddleware.js";
 
 dotenv.config();
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
+app.use("/api/teams", teamRoutes);
 
 // Example protected route — only reachable with a valid JWT
 app.get("/api/auth/me", requireAuth, (req, res) => {
