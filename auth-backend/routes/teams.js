@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Team from "../models/Team.js";
+import ScrimRequest from "../models/ScrimRequest.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = Router();
@@ -17,7 +18,7 @@ function populateTeam(query) {
     .populate("pendingRequests.user", PUBLIC_USER_FIELDS);
 }
 
-async function findUserTeam(userId) {
+function findUserTeam(userId) {
   return Team.findOne({
     $or: [{ captain: userId }, { "members.user": userId }],
   });
@@ -174,7 +175,33 @@ router.delete("/:id", requireAuth, async (req, res) => {
     if (!isCaptain(team, req.user.id)) {
       return res.status(403).json({ message: "Only the team captain can disband this team." });
     }
+
     await team.deleteOne();
+
+    // Clean up any scrim data that referenced this team so nothing is left
+    // pointing at a team that no longer exists. The disband itself already
+    // succeeded above, so a failure here shouldn't be reported as a failed
+    // disband — just log it.
+    try {
+      await Promise.all([
+        // This team's own scrim posts (open or matched) are no longer valid.
+        ScrimRequest.deleteMany({ team: team._id }),
+        // If this team was accepted as someone else's opponent, reopen that
+        // post instead of leaving it "matched" against a team that's gone.
+        ScrimRequest.updateMany(
+          { matchedWith: team._id },
+          { $set: { status: "open", matchedWith: null } }
+        ),
+        // Remove any pending challenge this team had sent on other teams' posts.
+        ScrimRequest.updateMany(
+          { "requests.team": team._id },
+          { $pull: { requests: { team: team._id } } }
+        ),
+      ]);
+    } catch (cleanupErr) {
+      console.error("Scrim cleanup after team disband failed:", cleanupErr);
+    }
+
     res.status(200).json({ message: "Team disbanded." });
   } catch (err) {
     console.error(err);

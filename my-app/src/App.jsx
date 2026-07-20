@@ -6,6 +6,9 @@ import PlayersPage from "./PlayersPage";
 import TeamsPage from "./TeamsPage.jsx";
 import TeamCreatePage from "./TeamCreatePage.jsx";
 import TeamDetailPage from "./TeamDetailPage.jsx";
+import ScrimsPage from "./ScrimsPage.jsx";
+import ScrimPostPage from "./ScrimPostPage.jsx";
+import ScrimDetailPage from "./ScrimDetailPage.jsx";
 import TournamentsPage from "./TournamentsPage.jsx";
 import TournamentDetailPage from "./TournamentDetailPage.jsx";
 import ProfilePage from "./ProfilePage.jsx";
@@ -72,6 +75,18 @@ function App() {
         <Route
           path="/teams/:id"
           element={<TeamDetailPage user={user} onRequireAuth={() => setShowAuth(true)} />}
+        />
+        <Route
+          path="/scrims"
+          element={<ScrimsPage user={user} onRequireAuth={() => setShowAuth(true)} />}
+        />
+        <Route
+          path="/scrims/new"
+          element={<ScrimPostPage user={user} onRequireAuth={() => setShowAuth(true)} />}
+        />
+        <Route
+          path="/scrims/:id"
+          element={<ScrimDetailPage user={user} onRequireAuth={() => setShowAuth(true)} />}
         />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/tournaments/:id" element={<TournamentDetailPage user={user} />} />

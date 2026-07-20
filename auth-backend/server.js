@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.js";
 import playerRoutes from "./routes/players.js";
 import tournamentRoutes from "./routes/tournaments.js";
 import teamRoutes from "./routes/teams.js";
+import scrimRoutes from "./routes/scrims.js";
 import { requireAuth } from "./middleware/authMiddleware.js";
 
 dotenv.config();
@@ -19,6 +20,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/teams", teamRoutes);
+app.use("/api/scrims", scrimRoutes);
 
 // Example protected route — only reachable with a valid JWT
 app.get("/api/auth/me", requireAuth, (req, res) => {

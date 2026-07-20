@@ -259,6 +259,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
           <div className="cc-nav-links" style={{ display: "flex", gap: 36, alignItems: "center" }}>
             <a className="cc-link" href="#tournaments">Tournaments</a>
             <Link className="cc-link" to="/teams">Teams</Link>
+            <Link className="cc-link" to="/scrims">Scrims</Link>
             <a className="cc-link" href="#customs">Customs</a>
             <a className="cc-link" href="#discord">Discord</a>
             <Link className="cc-link" to="/players">Find Players</Link>
@@ -292,12 +293,12 @@ export default function ClutchCircuit({ user, onProfileClick }) {
               borderTop: `1px solid ${TOKENS.steel}`,
             }}
           >
-            {["tournaments", "teams", "customs", "discord"].map((id) =>
-              id === "teams" ? (
+            {["tournaments", "teams", "scrims", "customs", "discord"].map((id) =>
+              id === "teams" || id === "scrims" ? (
                 <Link
                   key={id}
                   className="cc-link"
-                  to="/teams"
+                  to={`/${id}`}
                   onClick={() => setMenuOpen(false)}
                   style={{
                     padding: "18px 32px",
@@ -701,7 +702,8 @@ export default function ClutchCircuit({ user, onProfileClick }) {
               {
                 n: "02",
                 title: "Scrim finder",
-                body: "Looking for a practice match before a tournament? Tag your team's rank range and get paired with another squad.",
+                body: "Post your team's rank range and availability, or browse open scrim posts from other squads looking for a practice match.",
+                link: "/scrims",
               },
               {
                 n: "03",
@@ -734,6 +736,15 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                 <p style={{ color: TOKENS.mute, fontSize: 14, lineHeight: 1.6 }}>
                   {c.body}
                 </p>
+                {c.link && (
+                  <Link
+                    to={c.link}
+                    className="cc-link"
+                    style={{ fontSize: 13, color: TOKENS.cyan, display: "inline-block", marginTop: 14 }}
+                  >
+                    Find a scrim →
+                  </Link>
+                )}
               </div>
             ))}
           </div>
