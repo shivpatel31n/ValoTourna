@@ -697,13 +697,17 @@ export default function ClutchCircuit({ user, onProfileClick }) {
               {
                 n: "01",
                 title: "Pick-up lobbies",
-                body: "Post in the Discord queue channel and get matched into a 10-stack within minutes, most evenings.",
+                body: "Post your rank and role in the queue channel and get matched into a 10-stack — no waiting on a full tournament bracket.",
+                link: "https://discord.gg/x2AGYXjJw",
+                linkLabel: "Join the queue →",
+                external: true,
               },
               {
                 n: "02",
                 title: "Scrim finder",
                 body: "Post your team's rank range and availability, or browse open scrim posts from other squads looking for a practice match.",
                 link: "/scrims",
+                linkLabel: "Find a scrim →",
               },
               {
                 n: "03",
@@ -737,13 +741,25 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                   {c.body}
                 </p>
                 {c.link && (
-                  <Link
-                    to={c.link}
-                    className="cc-link"
-                    style={{ fontSize: 13, color: TOKENS.cyan, display: "inline-block", marginTop: 14 }}
-                  >
-                    Find a scrim →
-                  </Link>
+                  c.external ? (
+                    <a
+                      href={c.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="cc-link"
+                      style={{ fontSize: 13, color: TOKENS.cyan, display: "inline-block", marginTop: 14 }}
+                    >
+                      {c.linkLabel}
+                    </a>
+                  ) : (
+                    <Link
+                      to={c.link}
+                      className="cc-link"
+                      style={{ fontSize: 13, color: TOKENS.cyan, display: "inline-block", marginTop: 14 }}
+                    >
+                      {c.linkLabel}
+                    </Link>
+                  )
                 )}
               </div>
             ))}

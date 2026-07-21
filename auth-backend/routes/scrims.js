@@ -2,6 +2,7 @@ import { Router } from "express";
 import ScrimRequest, { RANK_ORDER } from "../models/ScrimRequest.js";
 import Team from "../models/Team.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { postToDiscord } from "../services/discordWebhook.js";
 
 const router = Router();
 
@@ -208,14 +209,25 @@ router.post("/:id/request", requireAuth, async (req, res) => {
       return res.status(409).json({ message: "You've already requested this scrim." });
     }
 
+    const message = (req.body?.message || "").trim();
     scrim.requests.push({
       team: myTeam._id,
       requestedBy: req.user.id,
-      message: (req.body?.message || "").trim(),
+      message,
     });
     await scrim.save();
 
     const populated = await populateScrim(ScrimRequest.findById(scrim._id));
+
+    // Best-effort notification — never blocks or fails the actual request.
+    const postingTeam = await Team.findById(scrim.team).select("name tag").catch(() => null);
+    const rankRange = scrim.minRank === scrim.maxRank ? scrim.minRank : `${scrim.minRank}–${scrim.maxRank}`;
+    postToDiscord(
+      `🎯 **${myTeam.name}** requested a scrim against **${postingTeam?.name || "a team"}** ` +
+        `(${scrim.region}, ${rankRange}).` +
+        (message ? `\n> "${message}"` : "")
+    );
+
     res.status(201).json({ scrim: populated.toJSON() });
   } catch (err) {
     console.error(err);

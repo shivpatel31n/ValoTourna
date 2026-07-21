@@ -12,6 +12,7 @@ import ScrimDetailPage from "./ScrimDetailPage.jsx";
 import TournamentsPage from "./TournamentsPage.jsx";
 import TournamentDetailPage from "./TournamentDetailPage.jsx";
 import ProfilePage from "./ProfilePage.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -102,6 +103,8 @@ function App() {
           onClose={() => setShowAuth(false)}
         />
       )}
+
+      <NotificationBell user={user} />
     </>
   );
 }
