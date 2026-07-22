@@ -47,7 +47,10 @@ router.get("/me", requireAuth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Player not found." });
     }
-    return res.json({ player: serializeUser(user) });
+    // isAdmin is deliberately left out of serializeUser() since that's
+    // shared with the public players list — only include it here, on the
+    // user's own private profile fetch.
+    return res.json({ player: { ...serializeUser(user), isAdmin: user.isAdmin } });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Could not load profile." });

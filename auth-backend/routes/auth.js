@@ -67,6 +67,7 @@ router.post("/signup", async (req, res) => {
         region: user.region,
         rank: user.rank,
         role: user.role,
+        isAdmin: user.isAdmin,
       },
     });
   } catch (err) {
@@ -112,6 +113,7 @@ router.post("/login", async (req, res) => {
         region: user.region,
         rank: user.rank,
         role: user.role,
+        isAdmin: user.isAdmin,
       },
     });
   } catch (err) {

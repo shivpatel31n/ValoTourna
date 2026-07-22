@@ -3,7 +3,7 @@ import crypto from "crypto";
 import Tournament from "../models/Tournament.js";
 import Registration from "../models/Registration.js";
 import User from "../models/User.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireAuth, requireAdmin } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
@@ -27,6 +27,41 @@ async function withCounts(tournamentDoc) {
   t.spotsLeft = Math.max(0, t.maxTeams - teamsCount);
   return t;
 }
+
+function slugify(str) {
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+async function uniqueSlug(title) {
+  const base = slugify(title) || "tournament";
+  let slug = base;
+  let suffix = 2;
+  while (await Tournament.findOne({ slug })) {
+    slug = `${base}-${suffix}`;
+    suffix++;
+  }
+  return slug;
+}
+
+const EDITABLE_FIELDS = [
+  "title",
+  "status",
+  "format",
+  "teamSize",
+  "startDate",
+  "regDeadline",
+  "endDate",
+  "maxTeams",
+  "prizePool",
+  "description",
+  "rules",
+  "champion",
+  "runnerUp",
+];
 
 // GET /api/tournaments
 router.get("/", async (req, res) => {
@@ -263,6 +298,86 @@ router.delete("/:slug/register", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to leave tournament." });
+  }
+});
+
+// POST /api/tournaments — create a tournament (admin only)
+router.post("/", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { title, status, format, teamSize, startDate, regDeadline, endDate, maxTeams, prizePool, description, rules } = req.body;
+
+    if (!title?.trim()) return res.status(400).json({ message: "Title is required." });
+    if (!teamSize || teamSize < 1) return res.status(400).json({ message: "A valid team size is required." });
+    if (!startDate) return res.status(400).json({ message: "Start date is required." });
+    if (!regDeadline) return res.status(400).json({ message: "Registration deadline is required." });
+    if (!maxTeams || maxTeams < 1) return res.status(400).json({ message: "A valid max teams is required." });
+
+    const slug = await uniqueSlug(title);
+
+    const tournament = await Tournament.create({
+      slug,
+      title: title.trim(),
+      status: status || "upcoming",
+      format: format || "",
+      teamSize,
+      startDate,
+      regDeadline,
+      endDate: endDate || null,
+      maxTeams,
+      prizePool: prizePool || "",
+      description: description || "",
+      rules: Array.isArray(rules) ? rules : [],
+    });
+
+    const data = await withCounts(tournament);
+    res.status(201).json({ tournament: data });
+  } catch (err) {
+    if (err.name === "ValidationError") return res.status(400).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: "Failed to create tournament." });
+  }
+});
+
+// PATCH /api/tournaments/:slug — edit a tournament (admin only)
+router.patch("/:slug", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    for (const field of EDITABLE_FIELDS) {
+      if (req.body[field] !== undefined) tournament[field] = req.body[field];
+    }
+
+    await tournament.save();
+    const data = await withCounts(tournament);
+    res.status(200).json({ tournament: data });
+  } catch (err) {
+    if (err.name === "ValidationError") return res.status(400).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: "Failed to update tournament." });
+  }
+});
+
+// DELETE /api/tournaments/:slug — delete a tournament (admin only)
+// Also cleans up every registration tied to it, so nothing is left
+// pointing at a tournament that no longer exists.
+router.delete("/:slug", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(200).json({ message: "Tournament not found." });
+
+    await tournament.deleteOne();
+
+    try {
+      await Registration.deleteMany({ tournament: tournament._id });
+    } catch (cleanupErr) {
+      console.error("Registration cleanup after tournament delete failed:", cleanupErr);
+    }
+
+    res.status(200).json({ message: "Tournament deleted." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete tournament." });
   }
 });
 

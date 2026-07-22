@@ -59,6 +59,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Not settable via any signup/profile form — only ever changed by
+    // editing the database directly. There's no self-service way to
+    // become an admin, intentionally.
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

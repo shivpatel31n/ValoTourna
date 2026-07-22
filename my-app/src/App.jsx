@@ -11,6 +11,7 @@ import ScrimPostPage from "./ScrimPostPage.jsx";
 import ScrimDetailPage from "./ScrimDetailPage.jsx";
 import TournamentsPage from "./TournamentsPage.jsx";
 import TournamentDetailPage from "./TournamentDetailPage.jsx";
+import AdminTournamentsPage from "./AdminTournamentsPage.jsx";
 import ProfilePage from "./ProfilePage.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 
@@ -90,6 +91,7 @@ function App() {
           element={<ScrimDetailPage user={user} onRequireAuth={() => setShowAuth(true)} />}
         />
         <Route path="/tournaments" element={<TournamentsPage />} />
+        <Route path="/admin/tournaments" element={<AdminTournamentsPage user={user} />} />
         <Route path="/tournaments/:id" element={<TournamentDetailPage user={user} />} />
         <Route
           path="/profile"
