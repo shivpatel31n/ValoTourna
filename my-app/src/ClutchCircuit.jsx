@@ -183,7 +183,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
         .cc-nav-links a:hover { color:${TOKENS.off}; }
         @keyframes cc-pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
         .cc-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; }
-        .cc-customs-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:20px; }
+        .cc-customs-grid { display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
         .cc-split { display:grid; grid-template-columns: 1fr 1fr; gap:60px; align-items:center; }
         @media (max-width: 860px) {
           .cc-nav-links { display:none; }
@@ -590,7 +590,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
               >
                 <div>
                   <h3 className="cc-h3" style={{ fontSize: 18 }}>
-                    Nullpoint Academy
+                    Bhenshot
                   </h3>
                   <span
                     className="cc-mono"
@@ -610,16 +610,16 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                     color: TOKENS.cyan,
                   }}
                 >
-                  2 open
+                  1 open
                 </span>
               </div>
 
               {[
-                { role: "DUELIST", name: "kessu", rank: "Immortal 1" },
-                { role: "CONTROLLER", name: "vane.gg", rank: "Ascendant 3" },
-                { role: "INITIATOR", name: "brix", rank: "Ascendant 2" },
-                { role: "SENTINEL", name: "Open slot", rank: "—", empty: true },
-                { role: "FLEX", name: "Open slot", rank: "—", empty: true },
+                { role: "DUELIST", name: "DELTA デルタ", rank: "Gold 1" },
+                { role: "CONTROLLER", name: "t3xture", rank: "Silver 3" },
+                { role: "INITIATOR", name: "DARK Sensei", rank: "Gold 1" },
+                { role: "SENTINEL", name: "DARK Knight 1007", rank: "Platinum 1"  },
+                { role: "SENTINEL/ DUELIST", name: "Open slot", rank: "—", empty: true },
               ].map((r) => (
                 <div
                   key={r.role}
@@ -708,11 +708,6 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                 body: "Post your team's rank range and availability, or browse open scrim posts from other squads looking for a practice match.",
                 link: "/scrims",
                 linkLabel: "Find a scrim →",
-              },
-              {
-                n: "03",
-                title: "Themed nights",
-                body: "Pistols-only, one-tap, and swiftplay nights run weekly — low stakes, high chaos.",
               },
             ].map((c) => (
               <div

@@ -2,6 +2,7 @@ import { Router } from "express";
 import Team from "../models/Team.js";
 import ScrimRequest from "../models/ScrimRequest.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { postToDiscord } from "../services/discordWebhook.js";
 
 const router = Router();
 
@@ -232,10 +233,20 @@ router.post("/:id/request-join", requireAuth, async (req, res) => {
       return res.status(409).json({ message: "You've already requested to join this team." });
     }
 
-    team.pendingRequests.push({ user: req.user.id, message: (req.body?.message || "").trim() });
+    const message = (req.body?.message || "").trim();
+    team.pendingRequests.push({ user: req.user.id, message });
     await team.save();
 
     const populated = await populateTeam(Team.findById(team._id));
+
+    // Best-effort notification — never blocks or fails the actual request.
+    // Uses a separate webhook/channel from scrim requests.
+    postToDiscord(
+      `🙋 **${req.user.username}** requested to join **${team.name}**` +
+        (message ? `\n> "${message}"` : ""),
+      process.env.DISCORD_TEAM_WEBHOOK_URL
+    );
+
     res.status(201).json({ team: populated.toJSON() });
   } catch (err) {
     console.error(err);

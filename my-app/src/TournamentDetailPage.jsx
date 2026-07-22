@@ -13,6 +13,24 @@ const TOKENS = {
 };
 
 const API_BASE = "http://localhost:5000/api/tournaments";
+const TOURNAMENT_REGISTRATION_DISCORD_URL = "https://discord.gg/KFaGdfd2E";
+
+function RegistrationError({ message }) {
+  if (!message) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ color: TOKENS.signal, fontSize: 13, marginBottom: 4 }}>{message}</div>
+      <a
+        href={TOURNAMENT_REGISTRATION_DISCORD_URL}
+        target="_blank"
+        rel="noreferrer"
+        style={{ color: TOKENS.cyan, fontSize: 12.5 }}
+      >
+        Still stuck? Ask in #tournament-registration →
+      </a>
+    </div>
+  );
+}
 
 function Badge({ status }) {
   const styles = {
@@ -429,9 +447,7 @@ export default function TournamentDetailPage({ user }) {
                 {roster.length > 0 && (
                   <RosterList roster={roster} style={{ marginTop: 14, marginBottom: 18 }} />
                 )}
-                {formError && (
-                  <div style={{ color: TOKENS.signal, fontSize: 13, marginBottom: 14 }}>{formError}</div>
-                )}
+                <RegistrationError message={formError} />
                 <div style={{ display: "flex", gap: 10 }}>
                   <button
                     onClick={() => handleInviteResponse(true)}
@@ -589,9 +605,7 @@ export default function TournamentDetailPage({ user }) {
               </>
             )}
 
-            {formError && (
-              <div style={{ color: TOKENS.signal, fontSize: 13, marginBottom: 16 }}>{formError}</div>
-            )}
+            <RegistrationError message={formError} />
 
             <div style={{ display: "flex", gap: 10 }}>
               <button type="button" onClick={() => setModalOpen(false)} className="td-btn" style={{ flex: 1 }}>
