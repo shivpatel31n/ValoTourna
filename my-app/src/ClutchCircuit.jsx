@@ -155,10 +155,26 @@ function Reveal({ children, as: Tag = "section", ...rest }) {
 }
 
 // ---------- MAIN COMPONENT ----------
-export default function ClutchCircuit({ user, onProfileClick }) {
+export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [onlineMembers, setOnlineMembers] = useState(null);
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
+
+  useEffect(() => {
+    const fetchOnlineMembers = async () => {
+      try {
+        const res = await fetch("https://discord.com/api/guilds/1521820339577819239/widget.json");
+        const data = await res.json();
+        setOnlineMembers(data.presence_count);
+      } catch (err) {
+        console.error("Failed to fetch Discord widget:", err);
+      }
+    };
+    fetchOnlineMembers();
+    const interval = setInterval(fetchOnlineMembers,30000);
+    return ()=>clearInterval(interval);
+  }, []);
 
   return (
     <div
@@ -379,7 +395,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                   display: "inline-block",
                 }}
               />
-              SEASON 3 REGISTRATION OPEN
+              VALORANT COMMUNITY HUB
             </div>
 
             <h1
@@ -411,11 +427,17 @@ export default function ClutchCircuit({ user, onProfileClick }) {
             </p>
 
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 44 }}>
-              <a href={DISCORD_URL} target="_blank" rel="noreferrer" className="cc-btn cc-btn-primary">
+              {!user ? (
+                <button onClick={onRequireAuth} className="cc-btn cc-btn-primary" style={{ fontFamily: "inherit" }}>
+                  Get started
+                </button>
+              ) : (
+                <a href="#tournaments" className="cc-btn cc-btn-primary">
+                  Browse tournaments
+                </a>
+              )}
+              <a href={DISCORD_URL} target="_blank" rel="noreferrer" className="cc-btn">
                 Join the Discord
-              </a>
-              <a href="#tournaments" className="cc-btn">
-                Browse tournaments
               </a>
             </div>
 
@@ -590,7 +612,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
               >
                 <div>
                   <h3 className="cc-h3" style={{ fontSize: 18 }}>
-                    Bhenshot
+                    Nullpoint Academy
                   </h3>
                   <span
                     className="cc-mono"
@@ -610,16 +632,16 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                     color: TOKENS.cyan,
                   }}
                 >
-                  1 open
+                  2 open
                 </span>
               </div>
 
               {[
-                { role: "DUELIST", name: "DELTA デルタ", rank: "Gold 1" },
-                { role: "CONTROLLER", name: "t3xture", rank: "Silver 3" },
-                { role: "INITIATOR", name: "DARK Sensei", rank: "Gold 1" },
-                { role: "SENTINEL", name: "DARK Knight 1007", rank: "Platinum 1"  },
-                { role: "SENTINEL/ DUELIST", name: "Open slot", rank: "—", empty: true },
+                { role: "DUELIST", name: "kessu", rank: "Immortal 1" },
+                { role: "CONTROLLER", name: "vane.gg", rank: "Ascendant 3" },
+                { role: "INITIATOR", name: "brix", rank: "Ascendant 2" },
+                { role: "SENTINEL", name: "Open slot", rank: "—", empty: true },
+                { role: "FLEX", name: "Open slot", rank: "—", empty: true },
               ].map((r) => (
                 <div
                   key={r.role}
@@ -811,15 +833,17 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                 display: "inline-block",
               }}
             />
-            THE HUB RUNS ON DISCORD
+            COORDINATE IN DISCORD
           </div>
           <h2 className="cc-h2" style={{ fontSize: 34, marginBottom: 14 }}>
-            Everything happens in the server
+            The site finds it. Discord is where you play it.
           </h2>
           <p style={{ color: TOKENS.mute, marginBottom: 32, fontSize: 15 }}>
-            Team recruiting, tournament brackets, scrim finding, and match
-            check-ins all live in the Discord. The site gets you here — the
-            server is where you actually play.
+            Build a team, post a scrim, or register for a tournament — all
+            right here on the site, with your rank pulled straight from your
+            Riot ID. Once you're matched up, Discord is where you actually
+            schedule the match, hop in voice, and meet the rest of the
+            community.
           </p>
           <a href={DISCORD_URL} target="_blank" rel="noreferrer" className="cc-btn cc-btn-primary">
             Join the Discord server
@@ -845,7 +869,7 @@ export default function ClutchCircuit({ user, onProfileClick }) {
                 display: "inline-block",
               }}
             />
-            412 members online now
+            {onlineMembers === null ? "Loading..." : `${onlineMembers} members online now`}
           </div>
         </div>
       </section>

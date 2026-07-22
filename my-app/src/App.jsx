@@ -62,6 +62,7 @@ function App() {
               user={user}
               onLogout={handleLogout}
               onProfileClick={handleProfileClick}
+              onRequireAuth={() => setShowAuth(true)}
             />
           }
         />
