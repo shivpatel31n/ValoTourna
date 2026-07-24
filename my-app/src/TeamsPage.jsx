@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Reveal from "./components/Reveal";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -216,8 +217,9 @@ export default function TeamsPage({ user, onRequireAuth }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {teams.map((t) => (
-            <div
+            <Reveal
               key={t.id}
+              as="div"
               className="tp-card"
               onClick={() => navigate(`/teams/${t.id}`)}
               style={{ background: TOKENS.panel, border: `1px solid ${TOKENS.steel}`, padding: 20 }}
@@ -256,7 +258,7 @@ export default function TeamsPage({ user, onRequireAuth }) {
                   ))}
                 </div>
               )}
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

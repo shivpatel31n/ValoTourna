@@ -1,6 +1,6 @@
-
 import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
+import Reveal from "./components/Reveal";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -154,8 +154,9 @@ export default function TournamentsPage() {
           }}
         >
           {shown.map((t) => (
-            <div
+            <Reveal
               key={t.id}
+              as="div"
               className="tp-card"
               onClick={() => navigate(`/tournaments/${t.id}`)}
               style={{
@@ -190,7 +191,7 @@ export default function TournamentsPage() {
                     : `Deadline ${new Date(t.regDeadline).toLocaleDateString()}`}
                 </span>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

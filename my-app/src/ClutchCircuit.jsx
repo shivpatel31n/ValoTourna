@@ -1,11 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import reynaBg from "./assets/reyna.png";
 import { Link } from "react-router-dom";
-import { TOURNAMENTS } from "./tournamentsData";
-
-// Homepage only teases upcoming/live tournaments — full list + past results
-// live on the /tournaments page.
-const FEATURED_TOURNAMENTS = TOURNAMENTS.filter((t) => t.status !== "past").slice(0, 6);
+import Reveal from "./components/Reveal";
 
 const DISCORD_URL = "https://discord.gg/7RCDt277Y";
 
@@ -47,7 +43,7 @@ function Badge({ status }) {
 
 function TournamentCard({ t }) {
   const [hover, setHover] = useState(false);
-  const spotsLabel = `${t.teams.length}/${t.maxTeams} ${t.teamSize === 1 ? "players" : "teams"}`;
+  const spotsLabel = `${t.teamsCount}/${t.maxTeams} ${t.teamSize === 1 ? "players" : "teams"}`;
   const dateLabel =
     t.status === "live"
       ? "In progress"
@@ -118,62 +114,32 @@ function TournamentCard({ t }) {
   );
 }
 
-// ---------- REVEAL-ON-SCROLL WRAPPER (replaces IntersectionObserver JS) ----------
-function Reveal({ children, as: Tag = "section", ...rest }) {
-  const ref = useRef(null);
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) setActive(true);
-        });
-      },
-      { threshold: 0.15 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <Tag
-      ref={ref}
-      {...rest}
-      style={{
-        ...rest.style,
-        opacity: active ? 1 : 0,
-        transform: active ? "translateY(0)" : "translateY(50px)",
-        transition: "all .7s ease",
-      }}
-    >
-      {children}
-    </Tag>
-  );
-}
-
 // ---------- MAIN COMPONENT ----------
 export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [onlineMembers, setOnlineMembers] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [featuredTournaments, setFeaturedTournaments] = useState([]);
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
 
   useEffect(() => {
-    const fetchOnlineMembers = async () => {
-      try {
-        const res = await fetch("https://discord.com/api/guilds/1521820339577819239/widget.json");
-        const data = await res.json();
-        setOnlineMembers(data.presence_count);
-      } catch (err) {
-        console.error("Failed to fetch Discord widget:", err);
-      }
-    };
-    fetchOnlineMembers();
-    const interval = setInterval(fetchOnlineMembers,30000);
-    return ()=>clearInterval(interval);
+    fetch("http://localhost:5000/api/stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setStats(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Homepage only teases upcoming/live tournaments — full list + past
+    // results live on the /tournaments page. Pulled from the real API now,
+    // not the old tournamentsData.js mock file, so DB edits show up here too.
+    fetch("http://localhost:5000/api/tournaments")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const list = data?.tournaments || [];
+        setFeaturedTournaments(list.filter((t) => t.status !== "past").slice(0, 6));
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -395,7 +361,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
                   display: "inline-block",
                 }}
               />
-              VALORANT COMMUNITY HUB
+              SEASON 3 REGISTRATION OPEN
             </div>
 
             <h1
@@ -443,9 +409,9 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
 
             <div style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
               {[
-                { num: "2,140", label: "Members" },
-                { num: "86", label: "Active teams" },
-                { num: "14", label: "Open tournaments" },
+                { num: stats ? stats.members.toLocaleString() : "—", label: "Members" },
+                { num: stats ? stats.activeTeams.toLocaleString() : "—", label: "Active teams" },
+                { num: stats ? stats.openTournaments.toLocaleString() : "—", label: "Open tournaments" },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="cc-h3" style={{ fontSize: 28, fontWeight: 700, color: TOKENS.off }}>
@@ -513,7 +479,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
           </div>
 
           <div className="cc-grid">
-            {FEATURED_TOURNAMENTS.map((t) => (
+            {featuredTournaments.map((t) => (
               <TournamentCard key={t.id} t={t} />
             ))}
           </div>
@@ -848,29 +814,31 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
           <a href={DISCORD_URL} target="_blank" rel="noreferrer" className="cc-btn cc-btn-primary">
             Join the Discord server
           </a>
-          <div
-            className="cc-mono"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              fontSize: 13,
-              color: TOKENS.mute,
-              marginTop: 26,
-            }}
-          >
-            <span
+          {stats?.discordOnline != null && (
+            <div
+              className="cc-mono"
               style={{
-                width: 7,
-                height: 7,
-                background: TOKENS.cyan,
-                borderRadius: "50%",
-                animation: "cc-pulse 1.6s ease-in-out infinite",
-                display: "inline-block",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                fontSize: 13,
+                color: TOKENS.mute,
+                marginTop: 26,
               }}
-            />
-            {onlineMembers === null ? "Loading..." : `${onlineMembers} members online now`}
-          </div>
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  background: TOKENS.cyan,
+                  borderRadius: "50%",
+                  animation: "cc-pulse 1.6s ease-in-out infinite",
+                  display: "inline-block",
+                }}
+              />
+              {stats.discordOnline.toLocaleString()} members online now
+            </div>
+          )}
         </div>
       </section>
 

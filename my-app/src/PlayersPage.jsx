@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Reveal from "./components/Reveal";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -241,8 +242,9 @@ export default function PlayersPage() {
           }}
         >
           {players.map((p) => (
-            <div
+            <Reveal
               key={p.id}
+              as="div"
               className="pp-card"
               style={{
                 background: TOKENS.panel,
@@ -287,7 +289,7 @@ export default function PlayersPage() {
               <div className="pp-mono" style={{ fontSize: 12, color: TOKENS.mute }}>
                 {p.region || "Region not set"}
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

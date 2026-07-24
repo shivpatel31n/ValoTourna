@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Reveal from "./components/Reveal";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -224,8 +225,9 @@ export default function ScrimsPage({ user, onRequireAuth }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {scrims.map((s) => (
-            <div
+            <Reveal
               key={s.id}
+              as="div"
               className="sp-card"
               onClick={() => navigate(`/scrims/${s.id}`)}
               style={{ background: TOKENS.panel, border: `1px solid ${TOKENS.steel}`, padding: 20 }}
@@ -246,7 +248,7 @@ export default function ScrimsPage({ user, onRequireAuth }) {
               {s.notes && (
                 <p style={{ fontSize: 12, color: TOKENS.mute, fontStyle: "italic" }}>"{s.notes}"</p>
               )}
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
