@@ -80,4 +80,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Case-insensitive uniqueness — "Kessu" and "kessu" count as the same
+// username, same pattern as Team.js's name index.
+userSchema.index({ username: 1 }, { collation: { locale: "en", strength: 2 }, unique: true });
+
 export default mongoose.model("User", userSchema);

@@ -22,10 +22,23 @@ function App() {
 
   useEffect(() => {
     const token = localStorage.getItem("cc_token");
-    const savedUser = localStorage.getItem("cc_user");
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    if (!token) return;
+
+    // Refetch from the backend instead of trusting the cached localStorage
+    // snapshot — that cache only reflects whatever was true at login time,
+    // so any change made directly in the DB (or by another session) would
+    // otherwise never show up until the user logged out and back in.
+    fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        setUser(data.user);
+        localStorage.setItem("cc_user", JSON.stringify(data.user));
+      })
+      .catch(() => {
+        // Token invalid/expired, or user no longer exists — clear the stale session.
+        localStorage.removeItem("cc_token");
+        localStorage.removeItem("cc_user");
+      });
   }, []);
 
   function handleLogout() {

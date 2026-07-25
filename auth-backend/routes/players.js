@@ -60,8 +60,25 @@ router.get("/me", requireAuth, async (req, res) => {
 // PATCH /api/players/me
 router.patch("/me", requireAuth, async (req, res) => {
   try {
-    const { role, lookingForTeam } = req.body;
+    const { username, role, lookingForTeam } = req.body;
     const update = {};
+
+    if (username !== undefined) {
+      const trimmed = username.trim();
+      if (trimmed.length < 3 || trimmed.length > 24) {
+        return res.status(400).json({ message: "Username must be 3–24 characters." });
+      }
+      // Case-insensitive uniqueness check, excluding the current user, so
+      // saving your own unchanged username doesn't falsely collide.
+      const existing = await User.findOne({
+        _id: { $ne: req.user.id },
+        username: trimmed,
+      }).collation({ locale: "en", strength: 2 });
+      if (existing) {
+        return res.status(409).json({ message: "That username is already taken." });
+      }
+      update.username = trimmed;
+    }
     if (role !== undefined) update.role = role;
     if (lookingForTeam !== undefined) update.lookingForTeam = lookingForTeam;
 
@@ -74,6 +91,9 @@ router.patch("/me", requireAuth, async (req, res) => {
     }
     return res.json({ player: serializeUser(user) });
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "That username is already taken." });
+    }
     if (err.name === "ValidationError") {
       return res.status(400).json({ message: err.message });
     }

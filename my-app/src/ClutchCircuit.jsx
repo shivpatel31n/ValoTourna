@@ -5,7 +5,6 @@ import Reveal from "./components/Reveal";
 
 const DISCORD_URL = "https://discord.gg/7RCDt277Y";
 
-// ---------- TOKENS (mirrors the original :root variables) ----------
 const TOKENS = {
   ink: "#0B0D0F",
   panel: "#14171A",
@@ -16,8 +15,6 @@ const TOKENS = {
   off: "#E9EAEA",
   mute: "#8B9096",
 };
-
-// ---------- SMALL PRESENTATIONAL PIECES ----------
 
 function Badge({ status }) {
   const styles = {
@@ -114,32 +111,41 @@ function TournamentCard({ t }) {
   );
 }
 
-// ---------- MAIN COMPONENT ----------
 export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [stats, setStats] = useState(null);
-  const [featuredTournaments, setFeaturedTournaments] = useState([]);
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/stats")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => data && setStats(data))
-      .catch(() => {});
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("/api/stats");
+        const data = await res.json();
+        setStats(data);
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+      }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
+  const [featuredTournaments, setFeaturedTournaments] = useState([]);
+
   useEffect(() => {
-    // Homepage only teases upcoming/live tournaments — full list + past
-    // results live on the /tournaments page. Pulled from the real API now,
-    // not the old tournamentsData.js mock file, so DB edits show up here too.
-    fetch("http://localhost:5000/api/tournaments")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        const list = data?.tournaments || [];
+    const fetchFeatured = async () => {
+      try {
+        const res = await fetch("/api/tournaments");
+        const data = await res.json();
+        const list = data.tournaments || [];
         setFeaturedTournaments(list.filter((t) => t.status !== "past").slice(0, 6));
-      })
-      .catch(() => {});
+      } catch (err) {
+        console.error("Failed to fetch featured tournaments:", err);
+      }
+    };
+    fetchFeatured();
   }, []);
 
   return (
@@ -179,7 +185,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         }
       `}</style>
 
-      {/* ---------- HEADER ---------- */}
       <header
         style={{
           position: "sticky",
@@ -247,15 +252,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
             <Link className="cc-link" to="/players">Find Players</Link>
           </div>
 
-          {/* <a
-            href={DISCORD_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="cc-btn cc-btn-primary"
-          >
-            Join Discord
-          </a> */}
-
           <button
             onClick={onProfileClick}
             className="cc-btn"
@@ -310,7 +306,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         )}
       </header>
 
-      {/* ---------- HERO ---------- */}
       <section
         style={{
           position: "relative",
@@ -323,7 +318,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* bottom fade so hero blends into the next section, like .hero::after */}
         <div
           aria-hidden="true"
           style={{
@@ -361,7 +355,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
                   display: "inline-block",
                 }}
               />
-              SEASON 3 REGISTRATION OPEN
+              VALORANT COMMUNITY HUB
             </div>
 
             <h1
@@ -435,7 +429,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         </div>
       </section>
 
-      {/* ---------- TOURNAMENTS ---------- */}
       <section
         id="tournaments"
         style={{
@@ -492,7 +485,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         </div>
       </section>
 
-      {/* ---------- TEAMS / PREMIER ---------- */}
       <Reveal
         id="teams"
         style={{
@@ -637,7 +629,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         </div>
       </Reveal>
 
-      {/* ---------- CUSTOMS ---------- */}
       <section
         id="customs"
         style={{
@@ -750,7 +741,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         </div>
       </section>
 
-      {/* ---------- DISCORD CTA ---------- */}
       <section
         id="discord"
         style={{
@@ -842,7 +832,6 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         </div>
       </section>
 
-      {/* ---------- FOOTER ---------- */}
       <footer style={{ padding: "40px 32px" }}>
         <div
           style={{

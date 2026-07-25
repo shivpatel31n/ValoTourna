@@ -16,10 +16,15 @@ function authHeaders() {
 
 async function henrikGet(path) {
   let response;
+
   try {
-    response = await fetch(`${BASE_URL}${path}`, { headers: authHeaders() });
+    response = await fetch(`${BASE_URL}${path}`, {
+      headers: authHeaders(),
+    });
   } catch (networkErr) {
-    throw new Error("Couldn't reach the rank lookup service. Please try again.");
+    throw new Error(
+      "Couldn't reach the rank lookup service. Please try again."
+    );
   }
 
   const json = await response.json().catch(() => null);
@@ -30,7 +35,9 @@ async function henrikGet(path) {
 
   if (!response.ok || !json || (json.status && json.status !== 200)) {
     const message = json?.errors?.[0]?.message;
-    throw new Error(message || "Couldn't verify that Riot ID right now. Please try again.");
+    throw new Error(
+      message || "Couldn't verify that Riot ID right now. Please try again."
+    );
   }
 
   return { data: json.data };
@@ -49,28 +56,50 @@ export async function fetchRiotRank(riotName, riotTag) {
     throw new Error("Riot ID name and tagline are required.");
   }
 
-  // Step 1: resolve the account to find which shard/region it lives on.
+  // Step 1: Resolve the Riot account to determine its region.
   const accountRes = await henrikGet(
-    `/v1/account/${encodeURIComponent(cleanName)}/${encodeURIComponent(cleanTag)}`
+    `/v1/account/${encodeURIComponent(cleanName)}/${encodeURIComponent(
+      cleanTag
+    )}`
   );
+
   if (accountRes.notFound) {
-    throw new Error(`No Valorant account found for ${cleanName}#${cleanTag}.`);
+    throw new Error(
+      `No Valorant account found for ${cleanName}#${cleanTag}.`
+    );
   }
+
   const region = accountRes.data?.region;
+
   if (!region) {
-    throw new Error("Couldn't determine that account's region. Please try again.");
+    throw new Error(
+      "Couldn't determine that account's region. Please try again."
+    );
   }
 
-  // Step 2: fetch current competitive rank for that shard.
+  // Step 2: Fetch the player's competitive rank.
   const mmrRes = await henrikGet(
-    `/v2/mmr/${region}/${encodeURIComponent(cleanName)}/${encodeURIComponent(cleanTag)}`
+    `/v2/mmr/${region}/${encodeURIComponent(cleanName)}/${encodeURIComponent(
+      cleanTag
+    )}`
   );
+
+  // If the account has never played Competitive (or Competitive is locked),
+  // HenrikDev returns 404. Treat this as "Unranked" instead of an error.
   if (mmrRes.notFound) {
-    throw new Error(`No ranked data found for ${cleanName}#${cleanTag}.`);
+    return {
+      rank: "Unranked",
+      region: toAppRegion(region),
+    };
   }
 
-  const rank = mmrRes.data?.current_data?.currenttierpatched || "Unranked";
-  return { rank, region: toAppRegion(region) };
+  const rank =
+    mmrRes.data?.current_data?.currenttierpatched ?? "Unranked";
+
+  return {
+    rank,
+    region: toAppRegion(region),
+  };
 }
 
 // HenrikDev shard codes -> this app's User.region enum values.
@@ -84,5 +113,8 @@ const HENRIK_TO_APP_REGION = {
 };
 
 function toAppRegion(henrikRegion) {
-  return HENRIK_TO_APP_REGION[henrikRegion?.toLowerCase()] || henrikRegion?.toUpperCase();
+  return (
+    HENRIK_TO_APP_REGION[henrikRegion?.toLowerCase()] ||
+    henrikRegion?.toUpperCase()
+  );
 }

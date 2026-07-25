@@ -31,7 +31,7 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [form, setForm] = useState({ role: "", lookingForTeam: true });
+  const [form, setForm] = useState({ username: "", role: "", lookingForTeam: true });
   const [respondingSlug, setRespondingSlug] = useState(null);
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
 
       setProfile(profileData.player);
       setForm({
+        username: profileData.player.username || "",
         role: profileData.player.role || "",
         lookingForTeam: profileData.player.lookingForTeam,
       });
@@ -86,6 +87,13 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Could not update profile.");
       setProfile(data.player);
+      // Keep the cached user (used for the "username · email" line at the
+      // top, and anywhere else in the app that reads localStorage) in sync
+      // with the new username right away, instead of waiting on a refresh.
+      const cachedUser = JSON.parse(localStorage.getItem("cc_user") || "null");
+      if (cachedUser) {
+        localStorage.setItem("cc_user", JSON.stringify({ ...cachedUser, username: data.player.username }));
+      }
       setEditing(false);
     } catch (err) {
       setError(err.message);
@@ -241,7 +249,7 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
         </div>
 
         <p style={{ color: TOKENS.mute, fontSize: 15, marginBottom: 34 }}>
-          {user.username} · {user.email}
+          {profile ? profile.username : user.username} · {user.email}
         </p>
 
         {loading && <p style={{ color: TOKENS.mute }}>Loading profile…</p>}
@@ -290,6 +298,7 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
                   the Riot lookup service) and can't be edited by hand — use
                   "Refresh Rank" to re-pull the latest value. */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: editing ? 20 : 0 }}>
+                <Field label="USERNAME" value={profile.username} />
                 <Field label="RIOT ID" value={profile.riotName ? `${profile.riotName}#${profile.riotTag}` : "Not set"} />
                 <Field label="RANK" value={profile.rank || "Unranked"} accent />
                 <Field label="REGION" value={profile.region || "Not set"} />
@@ -303,6 +312,19 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
               ) : (
                 <form onSubmit={handleSave}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 20 }}>
+                    <div>
+                      <label className="pf-mono" style={labelStyle}>USERNAME</label>
+                      <input
+                        type="text"
+                        name="username"
+                        value={form.username}
+                        onChange={handleChange}
+                        minLength={3}
+                        maxLength={24}
+                        required
+                        style={inputStyle}
+                      />
+                    </div>
                     <div>
                       <label className="pf-mono" style={labelStyle}>ROLE</label>
                       <select className="pf-select" name="role" value={form.role} onChange={handleChange} style={inputStyle}>
