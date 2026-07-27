@@ -26,6 +26,8 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [history, setHistory] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,11 +64,21 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
         lookingForTeam: profileData.player.lookingForTeam,
       });
       setHistory(historyData.history || []);
+      loadMatches(profileData.player.id);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function loadMatches(playerId) {
+    setMatchesLoading(true);
+    fetch(`${API_BASE}/${playerId}/matches`)
+      .then((res) => (res.ok ? res.json() : { matches: [] }))
+      .then((data) => setMatches(data.matches || []))
+      .catch(() => setMatches([]))
+      .finally(() => setMatchesLoading(false));
   }
 
   function handleChange(e) {
@@ -466,6 +478,67 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
                   </div>
                 ))}
             </div>
+
+            <h2 className="pf-h" style={{ fontSize: 18, margin: "32px 0 16px" }}>
+              Match History
+            </h2>
+
+            {matchesLoading && <p style={{ color: TOKENS.mute, fontSize: 14 }}>Loading match history…</p>}
+
+            {!matchesLoading && matches.length === 0 && (
+              <p style={{ color: TOKENS.mute, fontSize: 14 }}>
+                No recent competitive matches found.
+              </p>
+            )}
+
+            {!matchesLoading && matches.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {matches.map((m) => (
+                  <div
+                    key={m.matchId}
+                    className="pf-card"
+                    style={{
+                      background: TOKENS.panel,
+                      border: `1px solid ${TOKENS.steel}`,
+                      padding: "14px 18px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 200 }}>
+                      <span
+                        className="pf-mono"
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: m.result === "W" ? TOKENS.cyan : m.result === "L" ? TOKENS.signal : TOKENS.mute,
+                          width: 18,
+                        }}
+                      >
+                        {m.result || "—"}
+                      </span>
+                      <div>
+                        <div style={{ fontSize: 14 }}>{m.map}</div>
+                        <div className="pf-mono" style={{ fontSize: 11, color: TOKENS.mute }}>
+                          {m.agent}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pf-mono" style={{ fontSize: 13, color: TOKENS.off, minWidth: 90, textAlign: "center" }}>
+                      {m.kills}/{m.deaths}/{m.assists}
+                    </div>
+
+                    <div className="pf-mono" style={{ fontSize: 12, color: TOKENS.cyan, minWidth: 100, textAlign: "right" }}>
+                      {m.rankAtTime || "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -246,10 +246,12 @@ export default function PlayersPage() {
               key={p.id}
               as="div"
               className="pp-card"
+              onClick={() => navigate(`/players/${p.id}`)}
               style={{
                 background: TOKENS.panel,
                 border: `1px solid ${TOKENS.steel}`,
                 padding: 20,
+                cursor: "pointer",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>

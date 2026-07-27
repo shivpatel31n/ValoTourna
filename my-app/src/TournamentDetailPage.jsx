@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import Bracket from "./components/Bracket";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -87,6 +88,19 @@ export default function TournamentDetailPage({ user }) {
   const [registration, setRegistration] = useState(null);
   const [roster, setRoster] = useState([]);
   const [loadingRegistration, setLoadingRegistration] = useState(false);
+  const [recruiting, setRecruiting] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [spotsLeftOnTeam, setSpotsLeftOnTeam] = useState(null);
+  const [requestActionId, setRequestActionId] = useState(null);
+  const [togglingRecruiting, setTogglingRecruiting] = useState(false);
+
+  const [teams, setTeams] = useState([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [joinRequestTarget, setJoinRequestTarget] = useState(null);
+  const [joinRequestMessage, setJoinRequestMessage] = useState("");
+  const [sendingJoinRequest, setSendingJoinRequest] = useState(false);
+  const [joinRequestError, setJoinRequestError] = useState("");
+  const [joinRequestSent, setJoinRequestSent] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [joinType, setJoinType] = useState("solo");
@@ -122,6 +136,9 @@ export default function TournamentDetailPage({ user }) {
     if (!user || !token) {
       setRegistration(null);
       setRoster([]);
+      setPendingRequests([]);
+      setRecruiting(false);
+      setSpotsLeftOnTeam(null);
       return;
     }
     setLoadingRegistration(true);
@@ -132,17 +149,33 @@ export default function TournamentDetailPage({ user }) {
       .then((data) => {
         setRegistration(data.registration);
         setRoster(data.roster || []);
+        setPendingRequests(data.pendingRequests || []);
+        setRecruiting(!!data.recruiting);
+        setSpotsLeftOnTeam(data.spotsLeftOnTeam ?? null);
       })
       .catch(() => {
         setRegistration(null);
         setRoster([]);
+        setPendingRequests([]);
+        setRecruiting(false);
+        setSpotsLeftOnTeam(null);
       })
       .finally(() => setLoadingRegistration(false));
+  }
+
+  function loadTeams() {
+    setLoadingTeams(true);
+    fetch(`${API_BASE}/${id}/teams`)
+      .then((res) => res.json())
+      .then((data) => setTeams(data.teams || []))
+      .catch(() => setTeams([]))
+      .finally(() => setLoadingTeams(false));
   }
 
   useEffect(() => {
     loadTournament();
     loadRegistration();
+    loadTeams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
@@ -235,6 +268,7 @@ export default function TournamentDetailPage({ user }) {
       setModalOpen(false);
       loadTournament();
       loadRegistration();
+      loadTeams();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -252,6 +286,7 @@ export default function TournamentDetailPage({ user }) {
       setRegistration(null);
       setRoster([]);
       loadTournament();
+      loadTeams();
     } finally {
       setSubmitting(false);
     }
@@ -272,10 +307,84 @@ export default function TournamentDetailPage({ user }) {
       if (!res.ok) throw new Error(data.message || "Could not respond to invite.");
       loadTournament();
       loadRegistration();
+      loadTeams();
     } catch (err) {
       setFormError(err.message);
     } finally {
       setRespondingInvite(false);
+    }
+  }
+
+  function openJoinRequest(team) {
+    setJoinRequestTarget(team);
+    setJoinRequestMessage("");
+    setJoinRequestError("");
+    setJoinRequestSent(false);
+  }
+
+  async function handleSendJoinRequest(e) {
+    e.preventDefault();
+    if (!joinRequestTarget) return;
+    setSendingJoinRequest(true);
+    setJoinRequestError("");
+    try {
+      const res = await fetch(`${API_BASE}/${id}/teams/${joinRequestTarget.teamId}/request-join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: joinRequestMessage.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not send join request.");
+      setJoinRequestSent(true);
+    } catch (err) {
+      setJoinRequestError(err.message);
+    } finally {
+      setSendingJoinRequest(false);
+    }
+  }
+
+  async function handleRequestDecision(requesterUserId, accept) {
+    if (!registration?.teamId) return;
+    setRequestActionId(requesterUserId);
+    try {
+      const res = await fetch(
+        `${API_BASE}/${id}/teams/${registration.teamId}/requests/${requesterUserId}/${accept ? "accept" : "reject"}`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not update that request.");
+      loadRegistration();
+      loadTeams();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setRequestActionId(null);
+    }
+  }
+
+  async function handleToggleRecruiting() {
+    if (!registration?.teamId) return;
+    setTogglingRecruiting(true);
+    try {
+      const res = await fetch(`${API_BASE}/${id}/teams/${registration.teamId}/recruiting`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ recruiting: !recruiting }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not update recruiting status.");
+      setRecruiting(data.recruiting);
+      loadTeams();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setTogglingRecruiting(false);
     }
   }
 
@@ -424,6 +533,14 @@ export default function TournamentDetailPage({ user }) {
           </ul>
         </div>
 
+        {/* Bracket */}
+        <div style={{ marginBottom: 40 }}>
+          <h2 className="td-h" style={{ fontSize: 18, marginBottom: 16 }}>
+            Bracket
+          </h2>
+          <Bracket tournamentSlug={id} isAdmin={!!user?.isAdmin} />
+        </div>
+
         {/* Join panel */}
         {!isPast && (
           <div
@@ -479,6 +596,89 @@ export default function TournamentDetailPage({ user }) {
                   Joined {formatDate(registration.joinedAt)}
                 </p>
                 {roster.length > 0 && <RosterList roster={roster} style={{ marginBottom: 18 }} />}
+
+                {registration.type === "team" && registration.isCaptain && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <div className="td-mono" style={{ fontSize: 11, color: TOKENS.mute, letterSpacing: "0.05em" }}>
+                        RECRUITING
+                      </div>
+                      <button
+                        onClick={handleToggleRecruiting}
+                        className="td-mono"
+                        disabled={togglingRecruiting || spotsLeftOnTeam === 0}
+                        style={{
+                          fontSize: 11,
+                          padding: "5px 12px",
+                          textTransform: "uppercase",
+                          cursor: spotsLeftOnTeam === 0 ? "not-allowed" : "pointer",
+                          border: `1px solid ${recruiting ? TOKENS.cyan : TOKENS.steel}`,
+                          background: recruiting ? "rgba(62, 214, 197, 0.1)" : "transparent",
+                          color: recruiting ? TOKENS.cyan : TOKENS.mute,
+                        }}
+                      >
+                        {togglingRecruiting ? "…" : recruiting ? "Open — turn off" : "Closed — turn on"}
+                      </button>
+                    </div>
+
+                    {pendingRequests.length > 0 && (
+                      <>
+                        <div className="td-mono" style={{ fontSize: 11, color: TOKENS.mute, marginBottom: 8, letterSpacing: "0.05em" }}>
+                          JOIN REQUESTS
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {pendingRequests.map((r) => (
+                            <div
+                              key={r.userId}
+                              style={{
+                                background: TOKENS.panel2,
+                                padding: "10px 14px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: 8,
+                              }}
+                            >
+                              <div>
+                                <div style={{ color: TOKENS.off, fontSize: 13.5 }}>
+                                  {r.username}
+                                  {r.rank && (
+                                    <span className="td-mono" style={{ color: TOKENS.cyan, fontSize: 11, marginLeft: 8 }}>
+                                      {r.rank}
+                                    </span>
+                                  )}
+                                </div>
+                                {r.message && (
+                                  <div style={{ color: TOKENS.mute, fontSize: 12.5, marginTop: 2 }}>"{r.message}"</div>
+                                )}
+                              </div>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                  onClick={() => handleRequestDecision(r.userId, true)}
+                                  className="td-btn td-btn-primary"
+                                  disabled={requestActionId === r.userId}
+                                  style={{ padding: "6px 14px", fontSize: 12 }}
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={() => handleRequestDecision(r.userId, false)}
+                                  className="td-btn"
+                                  disabled={requestActionId === r.userId}
+                                  style={{ padding: "6px 14px", fontSize: 12 }}
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <button onClick={handleLeave} className="td-btn" disabled={submitting}>
                   {submitting
                     ? "Leaving…"
@@ -507,6 +707,62 @@ export default function TournamentDetailPage({ user }) {
               <p style={{ color: TOKENS.mute, fontSize: 14 }}>
                 {isFull ? "This tournament is full." : "Registration for this tournament has closed."}
               </p>
+            )}
+          </div>
+        )}
+
+        {/* Teams looking for players */}
+        {!isPast && requiredTeamSize > 1 && (
+          <div style={{ marginBottom: 60 }}>
+            <h2 className="td-h" style={{ fontSize: 18, marginBottom: 6 }}>
+              Teams looking for players
+            </h2>
+            <p style={{ color: TOKENS.mute, fontSize: 13.5, marginBottom: 18 }}>
+              Don't have a full squad? Request to join one of these teams already registered for this
+              tournament.
+            </p>
+
+            {loadingTeams && <p style={{ color: TOKENS.mute, fontSize: 14 }}>Loading teams…</p>}
+
+            {!loadingTeams && teams.filter((t) => t.recruiting).length === 0 && (
+              <p style={{ color: TOKENS.mute, fontSize: 14 }}>No teams are recruiting right now.</p>
+            )}
+
+            {!loadingTeams && teams.filter((t) => t.recruiting).length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+                {teams
+                  .filter((t) => t.recruiting)
+                  .map((t) => (
+                    <div
+                      key={t.teamId}
+                      style={{ background: TOKENS.panel, border: `1px solid ${TOKENS.steel}`, padding: 18 }}
+                    >
+                      <div className="td-h" style={{ fontSize: 16, marginBottom: 6 }}>
+                        {t.teamName}
+                      </div>
+                      <div className="td-mono" style={{ fontSize: 12, color: TOKENS.mute, marginBottom: 4 }}>
+                        Captain: {t.captain}
+                      </div>
+                      <div className="td-mono" style={{ fontSize: 12, color: TOKENS.cyan, marginBottom: 14 }}>
+                        {t.rosterSize}/{t.maxSize} players · {t.spotsLeft} spot{t.spotsLeft === 1 ? "" : "s"} left
+                      </div>
+                      {user ? (
+                        <button
+                          onClick={() => openJoinRequest(t)}
+                          className="td-btn"
+                          style={{ width: "100%" }}
+                          disabled={!!registration}
+                        >
+                          {registration ? "Already registered" : "Request to join"}
+                        </button>
+                      ) : (
+                        <p style={{ color: TOKENS.mute, fontSize: 12.5, textAlign: "center", margin: 0 }}>
+                          Log in via the Profile button to request to join.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+              </div>
             )}
           </div>
         )}
@@ -586,7 +842,7 @@ export default function TournamentDetailPage({ user }) {
                 </div>
                 <div style={{ marginBottom: 10 }}>
                   <label className="td-mono" style={labelStyle}>
-                    TEAMMATE USERNAMES (comma separated)
+                    TEAMMATE USERNAMES (optional, comma separated)
                   </label>
                   <input
                     value={teammateInput}
@@ -596,10 +852,11 @@ export default function TournamentDetailPage({ user }) {
                   />
                 </div>
                 <p style={{ color: TOKENS.mute, fontSize: 12.5, marginBottom: 22, lineHeight: 1.6 }}>
-                  Each name must be an existing registered username. They'll get a pending invite and won't
-                  count toward your roster until they accept.
+                  Know who you're playing with? Add their usernames and they'll get a pending invite.
+                  Otherwise, leave this blank — your team will show up on this page as recruiting, so
+                  other players can send you a request to join, and you can accept the ones you want.
                   {requiredTeamSize > 1 && (
-                    <> This tournament requires exactly <strong style={{ color: TOKENS.off }}>{requiredTeamSize}</strong> players total (including you).</>
+                    <> This tournament allows up to <strong style={{ color: TOKENS.off }}>{requiredTeamSize}</strong> players total (including you).</>
                   )}
                 </p>
               </>
@@ -615,6 +872,75 @@ export default function TournamentDetailPage({ user }) {
                 {submitting ? "Sending…" : "Confirm"}
               </button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {/* Join-request modal */}
+      {joinRequestTarget && (
+        <div
+          onClick={(e) => e.target === e.currentTarget && setJoinRequestTarget(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(11,13,15,0.85)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <form
+            onSubmit={handleSendJoinRequest}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              background: TOKENS.panel,
+              border: `1px solid ${TOKENS.steel}`,
+              padding: 32,
+            }}
+          >
+            <h3 className="td-h" style={{ fontSize: 20, marginBottom: 20 }}>
+              Request to join {joinRequestTarget.teamName}
+            </h3>
+
+            {joinRequestSent ? (
+              <>
+                <p style={{ color: TOKENS.off, fontSize: 15, marginBottom: 22, lineHeight: 1.6 }}>
+                  Sent! The captain will see your request and can accept you onto the roster.
+                </p>
+                <button type="button" onClick={() => setJoinRequestTarget(null)} className="td-btn td-btn-primary" style={{ width: "100%" }}>
+                  Done
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <label className="td-mono" style={labelStyle}>
+                    MESSAGE TO CAPTAIN (optional)
+                  </label>
+                  <input
+                    value={joinRequestMessage}
+                    onChange={(e) => setJoinRequestMessage(e.target.value)}
+                    placeholder="I main Sentinel, available evenings"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <RegistrationError message={joinRequestError} />
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button type="button" onClick={() => setJoinRequestTarget(null)} className="td-btn" style={{ flex: 1 }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="td-btn td-btn-primary" style={{ flex: 1 }} disabled={sendingJoinRequest}>
+                    {sendingJoinRequest ? "Sending…" : "Send request"}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         </div>
       )}

@@ -19,6 +19,26 @@ export function requireAuth(req, res, next) {
   }
 }
 
+// For public routes that still need to know who's asking (e.g. to decide
+// how much of a team roster to show them) without forcing a login. Sets
+// req.user when a valid token is present, otherwise leaves it undefined —
+// never rejects the request either way.
+export function optionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    // Invalid/expired token on a public route — treat as anonymous rather
+    // than blocking the request.
+  }
+  next();
+}
+
 // Must run after requireAuth. Looks up isAdmin fresh from the database on
 // every request rather than trusting the JWT, so revoking admin access
 // takes effect immediately instead of waiting for the token to expire.

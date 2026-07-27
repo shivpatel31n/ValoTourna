@@ -245,7 +245,7 @@ export default function TeamsPage({ user, onRequireAuth }) {
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 10 }}>
                 <span className="tp-mono" style={{ color: TOKENS.mute }}>{t.region}</span>
                 <span className="tp-mono" style={{ color: TOKENS.off }}>
-                  {(t.members?.length || 0) + 1}/{t.maxSize} players
+                  {(t.memberCount ?? t.members?.length ?? 0) + 1}/{t.maxSize} players
                 </span>
               </div>
 

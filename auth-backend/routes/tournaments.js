@@ -3,6 +3,7 @@ import crypto from "crypto";
 import Tournament from "../models/Tournament.js";
 import Registration from "../models/Registration.js";
 import User from "../models/User.js";
+import Match from "../models/Match.js";
 import { requireAuth, requireAdmin } from "../middleware/authMiddleware.js";
 
 const router = Router();
@@ -18,6 +19,16 @@ async function countEntries(tournamentId) {
     type: "team",
   });
   return soloCount + teamIds.length;
+}
+
+// Confirmed roster size for one team (by teamId) within a tournament —
+// used to know how many spots are left before a team is full.
+async function countConfirmedRoster(tournamentId, teamId) {
+  return Registration.countDocuments({
+    tournament: tournamentId,
+    teamId,
+    status: "confirmed",
+  });
 }
 
 async function withCounts(tournamentDoc) {
@@ -106,6 +117,8 @@ router.get("/:slug/my-registration", requireAuth, async (req, res) => {
     }
 
     let roster = [];
+    let pendingRequests = [];
+    let spotsLeftOnTeam = null;
     if (registration.type === "team" && registration.teamId) {
       const teamDocs = await Registration.find({
         tournament: tournament._id,
@@ -116,9 +129,39 @@ router.get("/:slug/my-registration", requireAuth, async (req, res) => {
         isCaptain: d.isCaptain,
         status: d.status,
       }));
+
+      if (registration.isCaptain) {
+        const confirmedCount = teamDocs.filter((d) => d.status === "confirmed").length;
+        spotsLeftOnTeam =
+          tournament.teamSize > 1 ? Math.max(0, tournament.teamSize - confirmedCount) : null;
+        if (registration.pendingRequests.length > 0) {
+          const requesterIds = registration.pendingRequests.map((r) => r.user);
+          const requesters = await User.find({ _id: { $in: requesterIds } }).select(
+            "username riotName riotTag rank role"
+          );
+          const requesterMap = new Map(requesters.map((u) => [u._id.toString(), u]));
+          pendingRequests = registration.pendingRequests.map((r) => {
+            const u = requesterMap.get(r.user.toString());
+            return {
+              userId: r.user.toString(),
+              username: u?.username || "Unknown",
+              rank: u?.rank || "",
+              role: u?.role || "",
+              message: r.message,
+              requestedAt: r.requestedAt,
+            };
+          });
+        }
+      }
     }
 
-    res.status(200).json({ registration: registration.toJSON(), roster });
+    res.status(200).json({
+      registration: registration.toJSON(),
+      roster,
+      recruiting: registration.isCaptain ? registration.recruiting : undefined,
+      pendingRequests,
+      spotsLeftOnTeam,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch registration." });
@@ -178,9 +221,9 @@ router.post("/:slug/register", requireAuth, async (req, res) => {
       : [];
 
     const rosterSize = 1 + usernames.length; // captain + invited teammates
-    if (tournament.teamSize > 1 && rosterSize !== tournament.teamSize) {
+    if (tournament.teamSize > 1 && rosterSize > tournament.teamSize) {
       return res.status(400).json({
-        message: `This tournament requires teams of exactly ${tournament.teamSize}. You've listed ${rosterSize}.`,
+        message: `This tournament allows teams of at most ${tournament.teamSize}. You've listed ${rosterSize}.`,
       });
     }
 
@@ -219,6 +262,9 @@ router.post("/:slug/register", requireAuth, async (req, res) => {
       teamId,
       isCaptain: true,
       status: "confirmed",
+      // Open to join requests by default whenever there's room on the
+      // roster — the captain can close it early or reopen it later.
+      recruiting: tournament.teamSize > 1,
     });
 
     await Registration.insertMany(
@@ -272,6 +318,220 @@ router.post("/:slug/register/respond", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to respond to invite." });
+  }
+});
+
+// GET /api/tournaments/:slug/teams — browse team entries registered for
+// this tournament, for players looking to join one instead of typing
+// teammate usernames themselves. Public (no login required to browse).
+router.get("/:slug/teams", async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const captainRegs = await Registration.find({
+      tournament: tournament._id,
+      type: "team",
+      isCaptain: true,
+    }).sort({ createdAt: -1 });
+
+    const teams = await Promise.all(
+      captainRegs.map(async (r) => {
+        const confirmedCount = await countConfirmedRoster(tournament._id, r.teamId);
+        const spotsLeft = tournament.teamSize > 1 ? Math.max(0, tournament.teamSize - confirmedCount) : 0;
+        return {
+          teamId: r.teamId,
+          teamName: r.teamName,
+          captain: r.displayName,
+          rosterSize: confirmedCount,
+          maxSize: tournament.teamSize,
+          spotsLeft,
+          recruiting: r.recruiting && spotsLeft > 0,
+        };
+      })
+    );
+
+    res.status(200).json({ teams });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch teams." });
+  }
+});
+
+// POST /api/tournaments/:slug/teams/:teamId/request-join — ask to join a
+// team that's already registered for this tournament (requires login)
+router.post("/:slug/teams/:teamId/request-join", requireAuth, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    if (tournament.status === "past") {
+      return res.status(400).json({ message: "This tournament has already ended." });
+    }
+    if (new Date(tournament.regDeadline).getTime() <= Date.now()) {
+      return res.status(400).json({ message: "Registration for this tournament has closed." });
+    }
+
+    const captainReg = await Registration.findOne({
+      tournament: tournament._id,
+      teamId: req.params.teamId,
+      isCaptain: true,
+    });
+    if (!captainReg) return res.status(404).json({ message: "Team not found for this tournament." });
+
+    if (!captainReg.recruiting) {
+      return res.status(400).json({ message: "This team isn't accepting join requests right now." });
+    }
+
+    const existing = await Registration.findOne({ tournament: tournament._id, user: req.user.id });
+    if (existing) {
+      return res.status(409).json({ message: "You're already registered for this tournament." });
+    }
+
+    const confirmedCount = await countConfirmedRoster(tournament._id, captainReg.teamId);
+    if (tournament.teamSize > 1 && confirmedCount >= tournament.teamSize) {
+      return res.status(400).json({ message: "This team's roster is already full." });
+    }
+
+    if (captainReg.pendingRequests.some((r) => r.user.toString() === req.user.id)) {
+      return res.status(409).json({ message: "You've already requested to join this team." });
+    }
+
+    const message = (req.body?.message || "").trim();
+    captainReg.pendingRequests.push({ user: req.user.id, message });
+    await captainReg.save();
+
+    res.status(201).json({ message: "Join request sent." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to send join request." });
+  }
+});
+
+// POST /api/tournaments/:slug/teams/:teamId/requests/:userId/accept —
+// captain accepts a join request, confirming that player onto the roster
+router.post("/:slug/teams/:teamId/requests/:userId/accept", requireAuth, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const captainReg = await Registration.findOne({
+      tournament: tournament._id,
+      teamId: req.params.teamId,
+      isCaptain: true,
+    });
+    if (!captainReg) return res.status(404).json({ message: "Team not found for this tournament." });
+    if (captainReg.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only the team captain can accept requests." });
+    }
+
+    const request = captainReg.pendingRequests.find((r) => r.user.toString() === req.params.userId);
+    if (!request) return res.status(404).json({ message: "Join request not found." });
+
+    const confirmedCount = await countConfirmedRoster(tournament._id, captainReg.teamId);
+    if (tournament.teamSize > 1 && confirmedCount >= tournament.teamSize) {
+      return res.status(400).json({ message: "This team's roster is already full." });
+    }
+
+    // The requester might have registered elsewhere in the meantime.
+    const alreadyRegistered = await Registration.findOne({
+      tournament: tournament._id,
+      user: req.params.userId,
+    });
+    if (alreadyRegistered) {
+      captainReg.pendingRequests = captainReg.pendingRequests.filter(
+        (r) => r.user.toString() !== req.params.userId
+      );
+      await captainReg.save();
+      return res.status(409).json({ message: "That player has since registered elsewhere." });
+    }
+
+    const requester = await User.findById(req.params.userId);
+    if (!requester) return res.status(404).json({ message: "That player no longer exists." });
+
+    await Registration.create({
+      tournament: tournament._id,
+      user: requester._id,
+      type: "team",
+      displayName: requester.username,
+      teamName: captainReg.teamName,
+      teamId: captainReg.teamId,
+      isCaptain: false,
+      status: "confirmed",
+    });
+
+    captainReg.pendingRequests = captainReg.pendingRequests.filter(
+      (r) => r.user.toString() !== req.params.userId
+    );
+    const newConfirmedCount = confirmedCount + 1;
+    if (tournament.teamSize > 1 && newConfirmedCount >= tournament.teamSize) {
+      captainReg.recruiting = false;
+    }
+    await captainReg.save();
+
+    res.status(200).json({ message: "Player added to your roster." });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "That player is already registered for this tournament." });
+    }
+    console.error(err);
+    res.status(500).json({ message: "Failed to accept request." });
+  }
+});
+
+// POST /api/tournaments/:slug/teams/:teamId/requests/:userId/reject —
+// captain declines a join request
+router.post("/:slug/teams/:teamId/requests/:userId/reject", requireAuth, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const captainReg = await Registration.findOne({
+      tournament: tournament._id,
+      teamId: req.params.teamId,
+      isCaptain: true,
+    });
+    if (!captainReg) return res.status(404).json({ message: "Team not found for this tournament." });
+    if (captainReg.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only the team captain can reject requests." });
+    }
+
+    captainReg.pendingRequests = captainReg.pendingRequests.filter(
+      (r) => r.user.toString() !== req.params.userId
+    );
+    await captainReg.save();
+
+    res.status(200).json({ message: "Request declined." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to reject request." });
+  }
+});
+
+// PATCH /api/tournaments/:slug/teams/:teamId/recruiting — captain opens or
+// closes their roster to unsolicited join requests
+router.patch("/:slug/teams/:teamId/recruiting", requireAuth, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const captainReg = await Registration.findOne({
+      tournament: tournament._id,
+      teamId: req.params.teamId,
+      isCaptain: true,
+    });
+    if (!captainReg) return res.status(404).json({ message: "Team not found for this tournament." });
+    if (captainReg.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only the team captain can change this." });
+    }
+
+    captainReg.recruiting = Boolean(req.body?.recruiting);
+    await captainReg.save();
+
+    res.status(200).json({ recruiting: captainReg.recruiting });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update recruiting status." });
   }
 });
 
@@ -378,6 +638,297 @@ router.delete("/:slug", requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to delete tournament." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Bracket (single elimination)
+// ---------------------------------------------------------------------------
+
+// Fisher–Yates shuffle — used to randomly seed entrants into round 1.
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function nextPowerOfTwo(n) {
+  let p = 1;
+  while (p < n) p *= 2;
+  return p;
+}
+
+// One entrant per solo registration, one entrant per distinct team (using
+// the captain's registration for the team's display name/id) — mirrors the
+// same counting rule as countEntries() above so "spotsLeft" and the actual
+// bracket always agree on who counts as an entry.
+async function buildEntrants(tournamentId) {
+  const soloRegs = await Registration.find({ tournament: tournamentId, type: "solo" });
+  const captainRegs = await Registration.find({
+    tournament: tournamentId,
+    type: "team",
+    isCaptain: true,
+  });
+
+  const soloEntrants = soloRegs.map((r) => ({
+    type: "solo",
+    refId: r.user.toString(),
+    name: r.displayName,
+  }));
+  const teamEntrants = captainRegs.map((r) => ({
+    type: "team",
+    refId: r.teamId,
+    name: r.teamName,
+  }));
+
+  return [...soloEntrants, ...teamEntrants];
+}
+
+// Places shuffled entrants into round-1 slots such that no match ends up
+// with two byes (possible if byes were simply appended at the end — see
+// PR discussion). Filling slot A from the first `pairs` entrants guarantees
+// slot A is always a real entrant (byesNeeded is always < pairs), so every
+// bye pairs with a real opponent instead of clustering.
+function seedRoundOne(entrants, pairs) {
+  const shuffled = shuffle(entrants);
+  const slotsA = shuffled.slice(0, pairs);
+  const slotsB = shuffled.slice(pairs);
+  return Array.from({ length: pairs }, (_, i) => ({
+    entrantA: slotsA[i] || null,
+    entrantB: slotsB[i] || null,
+  }));
+}
+
+// Advances a completed/bye match's winner into the next round's match,
+// filling slot A or B depending on whether this match was even/odd indexed.
+// If that next match now has both slots filled, flips it from "pending" to
+// "ready" so it shows up as playable.
+async function propagateWinner(match) {
+  const totalRounds = await Match.findOne({ tournament: match.tournament })
+    .sort({ round: -1 })
+    .select("round");
+  if (!totalRounds || match.round >= totalRounds.round) return; // final match, nothing to propagate to
+
+  const winningEntrant = match.winner === "A" ? match.entrantA : match.entrantB;
+  const nextMatch = await Match.findOne({
+    tournament: match.tournament,
+    round: match.round + 1,
+    matchIndex: Math.floor(match.matchIndex / 2),
+  });
+  if (!nextMatch) return;
+
+  if (match.matchIndex % 2 === 0) {
+    nextMatch.entrantA = winningEntrant;
+  } else {
+    nextMatch.entrantB = winningEntrant;
+  }
+  if (nextMatch.entrantA && nextMatch.entrantB) {
+    nextMatch.status = "ready";
+  }
+  await nextMatch.save();
+}
+
+// Attaches each team entrant's confirmed roster (just display names — full
+// player identity isn't needed here) so the bracket can show who's playing,
+// not just the team name. Solo entrants don't need this; the entrant name
+// already is the player.
+async function attachRosters(matches, tournamentId) {
+  const teamIds = new Set();
+  for (const m of matches) {
+    if (m.entrantA?.type === "team") teamIds.add(m.entrantA.refId);
+    if (m.entrantB?.type === "team") teamIds.add(m.entrantB.refId);
+  }
+  if (teamIds.size === 0) return matches.map((m) => m.toJSON());
+
+  const rosterRegs = await Registration.find({
+    tournament: tournamentId,
+    teamId: { $in: Array.from(teamIds) },
+    status: "confirmed",
+  }).sort({ isCaptain: -1, createdAt: 1 });
+
+  const rosterByTeam = new Map();
+  for (const r of rosterRegs) {
+    if (!rosterByTeam.has(r.teamId)) rosterByTeam.set(r.teamId, []);
+    rosterByTeam.get(r.teamId).push(r.displayName);
+  }
+
+  return matches.map((m) => {
+    const json = m.toJSON();
+    if (json.entrantA?.type === "team") json.entrantA.members = rosterByTeam.get(json.entrantA.refId) || [];
+    if (json.entrantB?.type === "team") json.entrantB.members = rosterByTeam.get(json.entrantB.refId) || [];
+    return json;
+  });
+}
+
+// GET /api/tournaments/:slug/bracket
+router.get("/:slug/bracket", async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const matches = await Match.find({ tournament: tournament._id }).sort({ round: 1, matchIndex: 1 });
+    const totalRounds = matches.reduce((max, m) => Math.max(max, m.round), 0);
+
+    res.status(200).json({
+      generated: matches.length > 0,
+      totalRounds,
+      matches: await attachRosters(matches, tournament._id),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch bracket." });
+  }
+});
+
+// POST /api/tournaments/:slug/bracket/generate — admin only
+router.post("/:slug/bracket/generate", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const existing = await Match.exists({ tournament: tournament._id });
+    if (existing) {
+      return res.status(409).json({ message: "Bracket already generated. Reset it first to regenerate." });
+    }
+
+    const entrants = await buildEntrants(tournament._id);
+    if (entrants.length < 2) {
+      return res.status(400).json({ message: "Need at least 2 confirmed entrants to generate a bracket." });
+    }
+
+    const bracketSize = nextPowerOfTwo(entrants.length);
+    const pairs = bracketSize / 2;
+    const totalRounds = Math.log2(bracketSize);
+
+    const roundOneSlots = seedRoundOne(entrants, pairs);
+
+    const docs = [];
+    // Round 1 — real matches, with byes auto-resolved.
+    roundOneSlots.forEach((slot, i) => {
+      const isBye = !slot.entrantB;
+      docs.push({
+        tournament: tournament._id,
+        round: 1,
+        matchIndex: i,
+        entrantA: slot.entrantA,
+        entrantB: slot.entrantB,
+        isBye,
+        winner: isBye ? "A" : null,
+        status: isBye ? "completed" : "ready",
+      });
+    });
+    // Rounds 2..totalRounds — empty placeholders, filled in as earlier
+    // rounds complete.
+    for (let round = 2; round <= totalRounds; round++) {
+      const matchesInRound = bracketSize / 2 ** round;
+      for (let i = 0; i < matchesInRound; i++) {
+        docs.push({
+          tournament: tournament._id,
+          round,
+          matchIndex: i,
+          entrantA: null,
+          entrantB: null,
+          status: "pending",
+        });
+      }
+    }
+
+    await Match.insertMany(docs);
+
+    // Propagate any round-1 byes up the bracket now that every round's
+    // placeholder rows exist to receive them.
+    const byeMatches = await Match.find({ tournament: tournament._id, round: 1, isBye: true });
+    for (const m of byeMatches) {
+      await propagateWinner(m);
+    }
+
+    const matches = await Match.find({ tournament: tournament._id }).sort({ round: 1, matchIndex: 1 });
+    res.status(201).json({ generated: true, totalRounds, matches: matches.map((m) => m.toJSON()) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to generate bracket." });
+  }
+});
+
+// DELETE /api/tournaments/:slug/bracket — admin only, resets the bracket
+// entirely (e.g. entrants changed, or seeding needs to be redone) and
+// clears any champion/runnerUp that had been set from a completed final.
+router.delete("/:slug/bracket", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    await Match.deleteMany({ tournament: tournament._id });
+    tournament.champion = null;
+    tournament.runnerUp = null;
+    await tournament.save();
+
+    res.status(200).json({ message: "Bracket reset." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to reset bracket." });
+  }
+});
+
+// PATCH /api/tournaments/:slug/bracket/matches/:matchId — admin only,
+// reports a score and advances the winner up the bracket. If this was the
+// final match, also sets the tournament's champion/runnerUp.
+router.patch("/:slug/bracket/matches/:matchId", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const match = await Match.findOne({ _id: req.params.matchId, tournament: tournament._id });
+    if (!match) return res.status(404).json({ message: "Match not found." });
+
+    if (match.status !== "ready") {
+      return res.status(400).json({
+        message:
+          match.status === "completed"
+            ? "This match has already been reported."
+            : "This match isn't ready yet — one or both entrants haven't been decided.",
+      });
+    }
+
+    const { scoreA, scoreB } = req.body;
+    if (
+      typeof scoreA !== "number" ||
+      typeof scoreB !== "number" ||
+      scoreA < 0 ||
+      scoreB < 0 ||
+      scoreA === scoreB
+    ) {
+      return res.status(400).json({ message: "Scores must be two different non-negative numbers." });
+    }
+
+    match.scoreA = scoreA;
+    match.scoreB = scoreB;
+    match.winner = scoreA > scoreB ? "A" : "B";
+    match.status = "completed";
+    await match.save();
+
+    const totalRoundDoc = await Match.findOne({ tournament: tournament._id }).sort({ round: -1 }).select("round");
+    const isFinal = totalRoundDoc && match.round === totalRoundDoc.round;
+
+    if (isFinal) {
+      const winnerEntrant = match.winner === "A" ? match.entrantA : match.entrantB;
+      const loserEntrant = match.winner === "A" ? match.entrantB : match.entrantA;
+      tournament.champion = winnerEntrant?.name || null;
+      tournament.runnerUp = loserEntrant?.name || null;
+      if (tournament.status !== "past") tournament.status = "past";
+      await tournament.save();
+    } else {
+      await propagateWinner(match);
+    }
+
+    const data = await withCounts(tournament);
+    res.status(200).json({ tournament: data, match: match.toJSON() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to report match result." });
   }
 });
 

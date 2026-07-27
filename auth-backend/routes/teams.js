@@ -1,7 +1,7 @@
 import { Router } from "express";
 import Team from "../models/Team.js";
 import ScrimRequest from "../models/ScrimRequest.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireAuth, optionalAuth } from "../middleware/authMiddleware.js";
 import { postToDiscord } from "../services/discordWebhook.js";
 
 const router = Router();
@@ -36,8 +36,32 @@ function isMember(team, userId) {
   );
 }
 
+// Roster identities and join requests are only anyone else's business if
+// they're the captain (requests) or actually on the roster (member list).
+// Everyone else gets counts instead of names — used on every read path so
+// the raw populated document is never handed straight to the client.
+function serializeTeamForViewer(team, viewerId) {
+  const json = team.toJSON();
+  const viewerIsCaptain = !!viewerId && team.captain._id.toString() === viewerId;
+  const viewerIsMember =
+    viewerIsCaptain || (!!viewerId && team.members.some((m) => m.user._id.toString() === viewerId));
+
+  json.memberCount = json.members.length;
+
+  if (!viewerIsCaptain) {
+    json.myRequestPending = !!viewerId && team.pendingRequests.some((r) => r.user._id.toString() === viewerId);
+    delete json.pendingRequests;
+  }
+
+  if (!viewerIsMember) {
+    json.members = [];
+  }
+
+  return json;
+}
+
 // GET /api/teams — browse teams, filter by region/role-needed/recruiting
-router.get("/", async (req, res) => {
+router.get("/", optionalAuth, async (req, res) => {
   try {
     const { region, role, recruiting } = req.query;
     const filter = {};
@@ -46,7 +70,7 @@ router.get("/", async (req, res) => {
     if (recruiting === "true") filter.recruiting = true;
 
     const teams = await populateTeam(Team.find(filter).sort({ createdAt: -1 }));
-    res.status(200).json({ teams: teams.map((t) => t.toJSON()) });
+    res.status(200).json({ teams: teams.map((t) => serializeTeamForViewer(t, req.user?.id)) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch teams." });
@@ -57,7 +81,7 @@ router.get("/", async (req, res) => {
 router.get("/mine", requireAuth, async (req, res) => {
   try {
     const team = await populateTeam(findUserTeam(req.user.id));
-    res.status(200).json({ team: team ? team.toJSON() : null });
+    res.status(200).json({ team: team ? serializeTeamForViewer(team, req.user.id) : null });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch your team." });
@@ -65,11 +89,11 @@ router.get("/mine", requireAuth, async (req, res) => {
 });
 
 // GET /api/teams/:id
-router.get("/:id", async (req, res) => {
+router.get("/:id", optionalAuth, async (req, res) => {
   try {
     const team = await populateTeam(Team.findById(req.params.id));
     if (!team) return res.status(404).json({ message: "Team not found." });
-    res.status(200).json({ team: team.toJSON() });
+    res.status(200).json({ team: serializeTeamForViewer(team, req.user?.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch team." });
@@ -106,7 +130,7 @@ router.post("/", requireAuth, async (req, res) => {
     });
 
     const populated = await populateTeam(Team.findById(team._id));
-    res.status(201).json({ team: populated.toJSON() });
+    res.status(201).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ message: "A team with that name already exists." });
@@ -155,7 +179,7 @@ router.patch("/:id", requireAuth, async (req, res) => {
 
     await team.save();
     const populated = await populateTeam(Team.findById(team._id));
-    res.status(200).json({ team: populated.toJSON() });
+    res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ message: "A team with that name already exists." });
@@ -247,7 +271,7 @@ router.post("/:id/request-join", requireAuth, async (req, res) => {
       process.env.DISCORD_TEAM_WEBHOOK_URL
     );
 
-    res.status(201).json({ team: populated.toJSON() });
+    res.status(201).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to send join request." });
@@ -283,7 +307,7 @@ router.post("/:id/requests/:userId/accept", requireAuth, async (req, res) => {
     await team.save();
 
     const populated = await populateTeam(Team.findById(team._id));
-    res.status(200).json({ team: populated.toJSON() });
+    res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to accept request." });
@@ -303,10 +327,43 @@ router.post("/:id/requests/:userId/reject", requireAuth, async (req, res) => {
     await team.save();
 
     const populated = await populateTeam(Team.findById(team._id));
-    res.status(200).json({ team: populated.toJSON() });
+    res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to reject request." });
+  }
+});
+
+// POST /api/teams/:id/transfer-captain/:userId — hand captaincy to an
+// existing member. The old captain becomes a regular member rather than
+// being removed, so the team doesn't lose a player in the process.
+router.post("/:id/transfer-captain/:userId", requireAuth, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.id);
+    if (!team) return res.status(404).json({ message: "Team not found." });
+    if (!isCaptain(team, req.user.id)) {
+      return res.status(403).json({ message: "Only the team captain can transfer captaincy." });
+    }
+    if (req.params.userId === req.user.id) {
+      return res.status(400).json({ message: "You're already the captain." });
+    }
+
+    const target = team.members.find((m) => m.user.toString() === req.params.userId);
+    if (!target) {
+      return res.status(404).json({ message: "That player isn't on this team's roster." });
+    }
+
+    const oldCaptainId = team.captain;
+    team.members = team.members.filter((m) => m.user.toString() !== req.params.userId);
+    team.members.push({ user: oldCaptainId, role: "" });
+    team.captain = req.params.userId;
+
+    await team.save();
+    const populated = await populateTeam(Team.findById(team._id));
+    res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to transfer captaincy." });
   }
 });
 
@@ -334,7 +391,7 @@ router.delete("/:id/members/:userId", requireAuth, async (req, res) => {
 
     await team.save();
     const populated = await populateTeam(Team.findById(team._id));
-    res.status(200).json({ team: populated.toJSON() });
+    res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to update roster." });

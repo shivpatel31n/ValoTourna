@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import ClutchCircuit from "./ClutchCircuit.jsx";
 import AuthPage from "./AuthPage.jsx";
 import PlayersPage from "./PlayersPage";
+import PlayerProfilePage from "./PlayerProfilePage";
 import TeamsPage from "./TeamsPage.jsx";
 import TeamCreatePage from "./TeamCreatePage.jsx";
 import TeamDetailPage from "./TeamDetailPage.jsx";
@@ -80,6 +81,7 @@ function App() {
           }
         />
         <Route path="/players" element={<PlayersPage />} />
+        <Route path="/players/:id" element={<PlayerProfilePage />} />
         <Route
           path="/teams"
           element={<TeamsPage user={user} onRequireAuth={() => setShowAuth(true)} />}

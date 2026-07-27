@@ -71,8 +71,9 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
   const captainId = team.captain?.id;
   const isCaptain = user && captainId === user.id;
   const isMember = user && (isCaptain || team.members.some((m) => m.user?.id === user.id));
-  const rosterFull = team.members.length + 1 >= team.maxSize;
-  const alreadyRequested = user && team.pendingRequests?.some((r) => r.user?.id === user.id);
+  const memberCount = team.memberCount ?? team.members.length;
+  const rosterFull = memberCount + 1 >= team.maxSize;
+  const alreadyRequested = user && !isCaptain && team.myRequestPending;
 
   async function callAction(path, options = {}) {
     setBusy(true);
@@ -110,6 +111,10 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
   }
   function handleRemove(userId) {
     callAction(`/${id}/members/${userId}`, { method: "DELETE" });
+  }
+  function handleTransferCaptain(userId, username) {
+    if (!confirm(`Make ${username} the team captain? You'll become a regular member.`)) return;
+    callAction(`/${id}/transfer-captain/${userId}`);
   }
   function handleLeave() {
     if (!confirm("Leave this team?")) return;
@@ -183,7 +188,7 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
 
       <div className="td-mono" style={{ fontSize: 13, color: TOKENS.mute, marginBottom: 24, display: "flex", gap: 16, flexWrap: "wrap" }}>
         <span>{team.region}</span>
-        <span>{team.members.length + 1}/{team.maxSize} players</span>
+        <span>{memberCount + 1}/{team.maxSize} players</span>
         <span style={{ color: team.recruiting ? TOKENS.cyan : TOKENS.mute }}>
           {team.recruiting ? "Recruiting" : "Not recruiting"}
         </span>
@@ -287,16 +292,27 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
       <h2 className="td-h" style={{ fontSize: 20, marginBottom: 16 }}>Roster</h2>
       <div style={{ display: "grid", gap: 10, marginBottom: 30 }}>
         <RosterRow player={team.captain} tag="Captain" />
-        {team.members.map((m) => (
-          <RosterRow
-            key={m.user?.id}
-            player={m.user}
-            tag={m.role}
-            onRemove={isCaptain ? () => handleRemove(m.user.id) : null}
-          />
-        ))}
-        {team.members.length === 0 && (
-          <p className="td-mono" style={{ color: TOKENS.mute, fontSize: 13 }}>No teammates yet.</p>
+        {isMember ? (
+          <>
+            {team.members.map((m) => (
+              <RosterRow
+                key={m.user?.id}
+                player={m.user}
+                tag={m.role}
+                onRemove={isCaptain ? () => handleRemove(m.user.id) : null}
+                onMakeCaptain={isCaptain ? () => handleTransferCaptain(m.user.id, m.user.username) : null}
+              />
+            ))}
+            {team.members.length === 0 && (
+              <p className="td-mono" style={{ color: TOKENS.mute, fontSize: 13 }}>No teammates yet.</p>
+            )}
+          </>
+        ) : (
+          memberCount > 0 && (
+            <p className="td-mono" style={{ color: TOKENS.mute, fontSize: 13 }}>
+              {memberCount} other player{memberCount === 1 ? "" : "s"} on this roster — visible to teammates only.
+            </p>
+          )
         )}
       </div>
 
@@ -388,7 +404,7 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
   );
 }
 
-function RosterRow({ player, tag, onRemove }) {
+function RosterRow({ player, tag, onRemove, onMakeCaptain }) {
   if (!player) return null;
   return (
     <div style={{ background: TOKENS.panel, border: `1px solid ${TOKENS.steel}`, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
@@ -403,6 +419,11 @@ function RosterRow({ player, tag, onRemove }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span className="td-mono" style={{ fontSize: 12, color: TOKENS.cyan }}>{player.rank || "Unranked"}</span>
         {tag && <span className="td-mono" style={{ fontSize: 11, color: TOKENS.mute, textTransform: "uppercase" }}>{tag}</span>}
+        {onMakeCaptain && (
+          <button onClick={onMakeCaptain} className="td-btn td-mono" style={{ ...secondaryBtnStyle, padding: "4px 10px", fontSize: 11 }}>
+            Make captain
+          </button>
+        )}
         {onRemove && (
           <button onClick={onRemove} className="td-btn td-mono" style={{ ...dangerBtnStyle, padding: "4px 10px", fontSize: 11 }}>
             Remove
