@@ -90,15 +90,20 @@ export async function fetchRiotRank(riotName, riotTag) {
     return {
       rank: "Unranked",
       region: toAppRegion(region),
+      rr: 0,
     };
   }
 
   const rank =
     mmrRes.data?.current_data?.currenttierpatched ?? "Unranked";
+  // Rank rating within the current tier (0-100) — already part of this same
+  // response, so capturing it costs nothing extra against the rate limit.
+  const rr = mmrRes.data?.current_data?.ranking_in_tier ?? 0;
 
   return {
     rank,
     region: toAppRegion(region),
+    rr,
   };
 }
 

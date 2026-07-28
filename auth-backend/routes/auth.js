@@ -35,9 +35,9 @@ router.post("/signup", async (req, res) => {
 
     // Look up the player's current rank (and region) from their Riot ID
     // instead of trusting a self-reported value.
-    let rank, region;
+    let rank, region, rr;
     try {
-      ({ rank, region } = await fetchRiotRank(riotName, riotTag));
+      ({ rank, region, rr } = await fetchRiotRank(riotName, riotTag));
     } catch (riotErr) {
       return res.status(400).json({ message: riotErr.message });
     }
@@ -51,6 +51,7 @@ router.post("/signup", async (req, res) => {
       riotTag: riotTag.trim().replace(/^#/, ""),
       region,
       rank,
+      rr,
       rankUpdatedAt: new Date(),
       role: role || "",
     });

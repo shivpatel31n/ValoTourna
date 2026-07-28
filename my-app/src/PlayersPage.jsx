@@ -39,10 +39,23 @@ export default function PlayersPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
 
+  const [leaders, setLeaders] = useState([]);
+  const [leadersLoading, setLeadersLoading] = useState(true);
+  const [leaderSort, setLeaderSort] = useState("rank");
+
   useEffect(() => {
     fetchPlayers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rankFilter, roleFilter, regionFilter]);
+
+  useEffect(() => {
+    setLeadersLoading(true);
+    fetch(`${API_BASE}/leaderboard?limit=10&sort=${leaderSort}`)
+      .then((res) => (res.ok ? res.json() : { players: [] }))
+      .then((data) => setLeaders(data.players || []))
+      .catch(() => setLeaders([]))
+      .finally(() => setLeadersLoading(false));
+  }, [leaderSort]);
 
   async function fetchPlayers() {
     setLoading(true);
@@ -139,6 +152,83 @@ export default function PlayersPage() {
             Join Discord →
           </span>
         </a>
+
+        {/* Top Players leaderboard */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 12 }}>
+          <h2 className="pp-h" style={{ fontSize: 20, margin: 0 }}>
+            Top Players
+          </h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[
+              { key: "rank", label: "By Rank" },
+              { key: "climb", label: "Climbing" },
+            ].map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setLeaderSort(opt.key)}
+                className="pp-mono"
+                style={{
+                  fontSize: 11.5,
+                  padding: "6px 14px",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  border: `1px solid ${leaderSort === opt.key ? TOKENS.cyan : TOKENS.steel}`,
+                  background: leaderSort === opt.key ? "rgba(62, 214, 197, 0.1)" : "transparent",
+                  color: leaderSort === opt.key ? TOKENS.cyan : TOKENS.mute,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {leadersLoading && <p style={{ color: TOKENS.mute, fontSize: 14, marginBottom: 34 }}>Loading leaderboard…</p>}
+        {!leadersLoading && leaders.length === 0 && (
+          <p style={{ color: TOKENS.mute, fontSize: 14, marginBottom: 34 }}>
+            {leaderSort === "climb"
+              ? "Not enough rank history yet to show who's climbing — check back in a few days."
+              : "No ranked players yet — refresh your rank from your profile to show up here."}
+          </p>
+        )}
+        {!leadersLoading && leaders.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 34 }}>
+            {leaders.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => navigate(`/players/${p.id}`)}
+                className="pp-card"
+                style={{
+                  background: TOKENS.panel,
+                  border: `1px solid ${TOKENS.steel}`,
+                  padding: "12px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  className="pp-mono"
+                  style={{ fontSize: 14, color: p.position <= 3 ? TOKENS.cyan : TOKENS.mute, width: 24 }}
+                >
+                  #{p.position}
+                </span>
+                <span style={{ flex: 1, fontSize: 15 }}>{p.username}</span>
+                <span className="pp-mono" style={{ fontSize: 12, color: TOKENS.mute }}>
+                  {p.role || "No role set"}
+                </span>
+                {leaderSort === "climb" && (
+                  <span className="pp-mono" style={{ fontSize: 13, color: TOKENS.cyan, minWidth: 70, textAlign: "right" }}>
+                    +{p.climb} RR
+                  </span>
+                )}
+                <span className="pp-mono" style={{ fontSize: 13, color: TOKENS.cyan, minWidth: 90, textAlign: "right" }}>
+                  {p.rank}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Filters */}
         <div style={{ display: "flex", gap: 16, marginBottom: 34, flexWrap: "wrap" }}>

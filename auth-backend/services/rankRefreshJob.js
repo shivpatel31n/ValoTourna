@@ -1,6 +1,8 @@
 import cron from "node-cron";
 import User from "../models/User.js";
+import RankHistory from "../models/RankHistory.js";
 import { fetchRiotRank } from "./riotRank.js";
+import { rankIndex } from "../routes/players.js";
 
 // HenrikDev rate limit budget:
 // - Basic key: 30 requests/min. Advanced key: 90 requests/min.
@@ -37,12 +39,25 @@ export async function runRankRefresh() {
 
   for (const user of users) {
     try {
-      const { rank, region } = await fetchRiotRank(user.riotName, user.riotTag);
+      const { rank, region, rr } = await fetchRiotRank(user.riotName, user.riotTag);
       await User.findByIdAndUpdate(user._id, {
         rank,
         region,
+        rr,
         rankUpdatedAt: new Date(),
       });
+      // Best-effort — a history-write failure shouldn't count as a failed
+      // refresh for this user, since the rank itself did update fine.
+      try {
+        await RankHistory.create({
+          user: user._id,
+          rank,
+          rr,
+          rating: rankIndex(rank) * 100 + (rr || 0),
+        });
+      } catch (historyErr) {
+        console.error(`[rank-refresh] Could not write history for ${user.username}:`, historyErr.message);
+      }
       succeeded++;
     } catch (err) {
       failed++;

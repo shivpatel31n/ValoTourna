@@ -2,10 +2,19 @@ import { Router } from "express";
 import User from "../models/User.js";
 import Registration from "../models/Registration.js";
 import Tournament from "../models/Tournament.js";
+import RankHistory from "../models/RankHistory.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { fetchRiotRank, fetchRecentMatches } from "../services/riotRank.js";
+import { RANK_ORDER } from "../models/ScrimRequest.js";
 
 const router = Router();
+
+// Position of a rank within the game's tier order — higher is better.
+// Anything not on the list (namely "Unranked", the default) sorts last.
+export function rankIndex(rank) {
+  const idx = RANK_ORDER.indexOf(rank);
+  return idx === -1 ? -1 : idx;
+}
 
 // Includes email — only ever used for a user's OWN profile (the /me
 // routes), never for anything another visitor can see.
@@ -18,6 +27,7 @@ function serializeUser(user) {
     riotTag: user.riotTag,
     region: user.region,
     rank: user.rank,
+    rr: user.rr,
     rankUpdatedAt: user.rankUpdatedAt,
     role: user.role,
     lookingForTeam: user.lookingForTeam,
@@ -126,15 +136,16 @@ router.post("/me/refresh-rank", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Player not found." });
     }
 
-    let rank, region;
+    let rank, region, rr;
     try {
-      ({ rank, region } = await fetchRiotRank(user.riotName, user.riotTag));
+      ({ rank, region, rr } = await fetchRiotRank(user.riotName, user.riotTag));
     } catch (riotErr) {
       return res.status(400).json({ message: riotErr.message });
     }
 
     user.rank = rank;
     user.region = region;
+    user.rr = rr;
     user.rankUpdatedAt = new Date();
     await user.save();
 
@@ -183,6 +194,80 @@ router.get("/me/history", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/players/leaderboard?limit=25&sort=rank|climb
+//
+// sort=rank (default): current rank tier, RR within tier as a tiebreak.
+// Entirely from data already stored on each User (set at signup and
+// whenever they hit "refresh rank" or the nightly job runs), so this never
+// itself calls out to HenrikDev or risks its shared rate limit.
+//
+// sort=climb: biggest gain in composite rating (tier*100 + RR) over the
+// tracked window, using the daily RankHistory snapshots written by the
+// nightly refresh job — also zero extra HenrikDev calls. Players with
+// fewer than two snapshots yet (new accounts, or before the job has run a
+// few times) simply won't have enough history to rank on this sort.
+router.get("/leaderboard", async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 25, 1), 100);
+    const sort = req.query.sort === "climb" ? "climb" : "rank";
+
+    const users = await User.find({ rank: { $ne: "Unranked" } });
+    const byId = new Map(users.map((u) => [u._id.toString(), u]));
+
+    if (sort === "rank") {
+      const ranked = users
+        .map(serializePublicUser)
+        .sort((a, b) => {
+          const tierDiff = rankIndex(b.rank) - rankIndex(a.rank);
+          return tierDiff !== 0 ? tierDiff : (b.rr || 0) - (a.rr || 0);
+        })
+        .slice(0, limit)
+        .map((player, i) => ({ position: i + 1, ...player }));
+
+      return res.status(200).json({ players: ranked, sort });
+    }
+
+    // climb: for each user, compare their oldest and newest RankHistory
+    // snapshot within the tracked window (last 14 days is plenty — this
+    // app snapshots nightly, so that's up to 14 data points per user).
+    const windowStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const snapshots = await RankHistory.find({
+      user: { $in: Array.from(byId.keys()) },
+      capturedAt: { $gte: windowStart },
+    }).sort({ capturedAt: 1 });
+
+    const firstByUser = new Map();
+    const lastByUser = new Map();
+    for (const snap of snapshots) {
+      const key = snap.user.toString();
+      if (!firstByUser.has(key)) firstByUser.set(key, snap);
+      lastByUser.set(key, snap);
+    }
+
+    const withClimb = [];
+    for (const [key, user] of byId) {
+      const first = firstByUser.get(key);
+      const last = lastByUser.get(key);
+      if (!first || !last || first._id.equals(last._id)) continue; // not enough history yet
+      withClimb.push({
+        ...serializePublicUser(user),
+        climb: last.rating - first.rating,
+        trackedSince: first.capturedAt,
+      });
+    }
+
+    const climbing = withClimb
+      .sort((a, b) => b.climb - a.climb)
+      .slice(0, limit)
+      .map((player, i) => ({ position: i + 1, ...player }));
+
+    res.status(200).json({ players: climbing, sort });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch leaderboard." });
+  }
+});
+
 // GET /api/players/:id — public profile (no email), for anyone clicking
 // through from the Find Players page.
 router.get("/:id", async (req, res) => {
@@ -216,7 +301,7 @@ router.get("/:id/matches", async (req, res) => {
       return res.json({ matches: [] });
     }
 
-    const matches = await fetchRecentMatches(user.riotName, user.riotTag, user.region, 10);
+    const matches = await fetchRecentMatches(user.riotName, user.riotTag, user.region, 5);
 
     matchCache.set(req.params.id, { data: matches, expiresAt: Date.now() + MATCH_CACHE_TTL_MS });
 

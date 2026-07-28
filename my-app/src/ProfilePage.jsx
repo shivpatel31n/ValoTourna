@@ -312,7 +312,11 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: editing ? 20 : 0 }}>
                 <Field label="USERNAME" value={profile.username} />
                 <Field label="RIOT ID" value={profile.riotName ? `${profile.riotName}#${profile.riotTag}` : "Not set"} />
-                <Field label="RANK" value={profile.rank || "Unranked"} accent />
+                <Field
+                  label="RANK"
+                  value={profile.rank ? (profile.rr > 0 ? `${profile.rank} (${profile.rr} RR)` : profile.rank) : "Unranked"}
+                  accent
+                />
                 <Field label="REGION" value={profile.region || "Not set"} />
               </div>
 

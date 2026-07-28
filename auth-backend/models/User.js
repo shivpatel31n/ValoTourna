@@ -41,6 +41,13 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "Unranked",
     },
+    // Rank rating within the current tier (0-100) — same HenrikDev call as
+    // `rank`, just also kept so same-rank players can be ordered on a
+    // leaderboard instead of tying.
+    rr: {
+      type: Number,
+      default: 0,
+    },
     rankUpdatedAt: {
       type: Date,
       default: null,
