@@ -22,7 +22,25 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: {
       type: String,
-      required: true,
+      // Only local (email/password) accounts have one — Google accounts
+      // authenticate entirely through the verified Google credential and
+      // never set a password on this app.
+      required: function () {
+        return this.authProvider === "local";
+      },
+    },
+    // Set only for accounts created via "Sign in with Google" — this is
+    // Google's stable, unique subject ("sub") claim for that account, not
+    // anything derived from the email (emails can change; this can't).
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
     },
     riotName: {
       type: String,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -13,6 +13,11 @@ const TOKENS = {
 
 // Point this at wherever your Express server runs
 const API_BASE = "http://localhost:5000/api/auth";
+// Set VITE_GOOGLE_CLIENT_ID in my-app/.env — create one at
+// https://console.cloud.google.com/apis/credentials (OAuth client ID, Web
+// application type; add this app's origin under "Authorized JavaScript
+// origins"). The Google button silently doesn't render without this set.
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
 
@@ -29,10 +34,115 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Set once Google hands back a credential for an account that doesn't
+  // exist here yet — while this is non-null, the form below switches into
+  // "finish creating your account" mode instead of login/signup.
+  const [googleProfile, setGoogleProfile] = useState(null); // { credential, email, suggestedUsername }
+  const googleButtonRef = useRef(null);
+
   const isSignup = mode === "signup";
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    function renderButton() {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "filled_black",
+        size: "large",
+        width: 340,
+        text: "continue_with",
+      });
+    }
+
+    if (window.google?.accounts?.id) {
+      renderButton();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderButton;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  function finishAuth(data) {
+    // Store the JWT — swap for a more secure storage strategy in production
+    localStorage.setItem("cc_token", data.token);
+    localStorage.setItem("cc_user", JSON.stringify(data.user));
+    if (onAuthSuccess) onAuthSuccess(data.user, data.token);
+    if (onClose) onClose();
+  }
+
+  async function handleGoogleCredential(response) {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Google sign-in failed.");
+
+      if (data.needsProfile) {
+        // Not a full account yet — collect the Riot ID/username Google
+        // doesn't provide, then finish via /google/complete-profile.
+        setGoogleProfile({
+          credential: response.credential,
+          email: data.email,
+        });
+        setForm((f) => ({ ...f, username: data.suggestedUsername || "", email: data.email }));
+        return;
+      }
+
+      finishAuth(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCompleteGoogleProfile(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/google/complete-profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credential: googleProfile.credential,
+          username: form.username,
+          riotName: form.riotName,
+          riotTag: form.riotTag,
+          role: form.role,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Couldn't finish creating your account.");
+      finishAuth(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -58,12 +168,7 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
         throw new Error(data.message || "Something went wrong.");
       }
 
-      // Store the JWT — swap for a more secure storage strategy in production
-      localStorage.setItem("cc_token", data.token);
-      localStorage.setItem("cc_user", JSON.stringify(data.user));
-
-      if (onAuthSuccess) onAuthSuccess(data.user, data.token);
-      if (onClose) onClose();
+      finishAuth(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -160,6 +265,129 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
           />
           Clutch Circuit
         </div>
+
+        {googleProfile ? (
+          <>
+            <h2 className="cc-auth-h1" style={{ fontSize: 24, marginBottom: 6 }}>
+              Almost there
+            </h2>
+            <p style={{ color: TOKENS.mute, fontSize: 14, marginBottom: 26 }}>
+              Signed in as <strong style={{ color: TOKENS.off }}>{googleProfile.email}</strong> via
+              Google — just need your Riot ID to finish setting up your account.
+            </p>
+
+            <form onSubmit={handleCompleteGoogleProfile}>
+              <div style={{ marginBottom: 16 }}>
+                <label className="cc-auth-mono" style={labelStyle}>USERNAME</label>
+                <input
+                  className="cc-auth-input"
+                  type="text"
+                  name="username"
+                  value={form.username}
+                  onChange={handleChange}
+                  placeholder="kessu"
+                  required
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="cc-auth-mono" style={labelStyle}>RIOT ID</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    className="cc-auth-input"
+                    type="text"
+                    name="riotName"
+                    value={form.riotName}
+                    onChange={handleChange}
+                    placeholder="kessu"
+                    required
+                    style={{ ...inputStyle, flex: 2 }}
+                  />
+                  <span style={{ color: TOKENS.mute, fontSize: 16 }}>#</span>
+                  <input
+                    className="cc-auth-input"
+                    type="text"
+                    name="riotTag"
+                    value={form.riotTag}
+                    onChange={handleChange}
+                    placeholder="1234"
+                    required
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                </div>
+                <p style={{ fontSize: 11, color: TOKENS.mute, marginTop: 6 }}>
+                  We'll fetch your current rank automatically from this.
+                </p>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <label className="cc-auth-mono" style={labelStyle}>ROLE</label>
+                <select
+                  className="cc-auth-input"
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                >
+                  <option value="" disabled>Select role</option>
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              {error && (
+                <div
+                  style={{
+                    background: "rgba(217, 58, 103, 0.12)",
+                    border: `1px solid ${TOKENS.signal}`,
+                    color: TOKENS.signal,
+                    fontSize: 13,
+                    padding: "10px 14px",
+                    marginBottom: 18,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: "100%",
+                  padding: "13px 22px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: "0.03em",
+                  textTransform: "uppercase",
+                  border: `1px solid ${TOKENS.signal}`,
+                  background: TOKENS.signal,
+                  color: "#0B0D0F",
+                  clipPath:
+                    "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                {loading ? "Please wait…" : "Finish creating account"}
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+        {GOOGLE_CLIENT_ID && (
+          <div style={{ marginBottom: 22 }}>
+            <div ref={googleButtonRef} style={{ display: "flex", justifyContent: "center" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "18px 0" }}>
+              <div style={{ flex: 1, height: 1, background: TOKENS.steel }} />
+              <span className="cc-auth-mono" style={{ fontSize: 11, color: TOKENS.mute }}>OR</span>
+              <div style={{ flex: 1, height: 1, background: TOKENS.steel }} />
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div
@@ -386,10 +614,20 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
             {isSignup ? "Log in" : "Sign up"}
           </span>
         </p>
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+const labelStyle = {
+  fontSize: 11,
+  color: TOKENS.mute,
+  letterSpacing: "0.05em",
+  display: "block",
+  marginBottom: 8,
+};
 
 const inputStyle = {
   width: "100%",

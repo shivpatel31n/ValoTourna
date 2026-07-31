@@ -3,6 +3,7 @@ import Team from "../models/Team.js";
 import ScrimRequest from "../models/ScrimRequest.js";
 import { requireAuth, optionalAuth } from "../middleware/authMiddleware.js";
 import { postToDiscord } from "../services/discordWebhook.js";
+import { notify } from "../services/notify.js";
 
 const router = Router();
 
@@ -306,6 +307,13 @@ router.post("/:id/requests/:userId/accept", requireAuth, async (req, res) => {
     team.pendingRequests = team.pendingRequests.filter((r) => r.user.toString() !== req.params.userId);
     await team.save();
 
+    notify(
+      req.params.userId,
+      "team_join_accepted",
+      `You've been accepted onto ${team.name}.`,
+      `/teams/${team._id}`
+    );
+
     const populated = await populateTeam(Team.findById(team._id));
     res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });
   } catch (err) {
@@ -325,6 +333,13 @@ router.post("/:id/requests/:userId/reject", requireAuth, async (req, res) => {
 
     team.pendingRequests = team.pendingRequests.filter((r) => r.user.toString() !== req.params.userId);
     await team.save();
+
+    notify(
+      req.params.userId,
+      "team_join_rejected",
+      `Your request to join ${team.name} was declined.`,
+      `/teams`
+    );
 
     const populated = await populateTeam(Team.findById(team._id));
     res.status(200).json({ team: serializeTeamForViewer(populated, req.user.id) });

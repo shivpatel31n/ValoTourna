@@ -23,6 +23,7 @@ export default function NotificationBell({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [summary, setSummary] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -54,6 +55,25 @@ export default function NotificationBell({ user }) {
     setOpen(false);
   }, [location.pathname]);
 
+  function handleToggle() {
+    const opening = !open;
+    setOpen(opening);
+    if (!opening) return;
+
+    fetch(`${API_BASE}`, { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : { notifications: [] }))
+      .then((data) => setNotifications(data.notifications || []))
+      .catch(() => setNotifications([]));
+
+    // Clears the unread badge now that they've seen what's here — the
+    // pending-action counts (join requests, scrim requests) aren't
+    // "read/unread" the same way, so this only affects the notification feed.
+    if (summary?.unreadNotifications > 0) {
+      fetch(`${API_BASE}/read-all`, { method: "POST", headers: authHeaders() }).catch(() => {});
+      setSummary((s) => (s ? { ...s, unreadNotifications: 0, count: s.teamJoinRequests + s.scrimRequests } : s));
+    }
+  }
+
   if (!user) return null;
 
   const count = summary?.count || 0;
@@ -84,20 +104,22 @@ export default function NotificationBell({ user }) {
             position: "absolute",
             bottom: 56,
             right: 0,
-            width: 260,
+            width: 300,
+            maxHeight: 420,
+            overflowY: "auto",
             background: TOKENS.panel,
             border: `1px solid ${TOKENS.steel}`,
             padding: 18,
             boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
           }}
         >
-          {count === 0 ? (
+          {count === 0 && notifications.length === 0 ? (
             <p style={{ fontSize: 12, color: TOKENS.mute, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              No pending requests.
+              Nothing new.
             </p>
           ) : (
             <div style={{ display: "grid", gap: 14 }}>
-              {summary.teamJoinRequests > 0 && (
+              {summary?.teamJoinRequests > 0 && (
                 <button
                   className="nb-item"
                   onClick={() => {
@@ -109,7 +131,7 @@ export default function NotificationBell({ user }) {
                   {summary.teamJoinRequests} pending join request{summary.teamJoinRequests > 1 ? "s" : ""} →
                 </button>
               )}
-              {summary.scrimRequests > 0 && (
+              {summary?.scrimRequests > 0 && (
                 <button
                   className="nb-item"
                   onClick={() => {
@@ -121,6 +143,24 @@ export default function NotificationBell({ user }) {
                   {summary.scrimRequests} pending scrim request{summary.scrimRequests > 1 ? "s" : ""} →
                 </button>
               )}
+
+              {notifications.length > 0 && (summary?.teamJoinRequests > 0 || summary?.scrimRequests > 0) && (
+                <div style={{ height: 1, background: TOKENS.steel }} />
+              )}
+
+              {notifications.map((n) => (
+                <button
+                  key={n.id}
+                  className="nb-item"
+                  onClick={() => {
+                    setOpen(false);
+                    if (n.link) navigate(n.link);
+                  }}
+                  style={{ ...itemStyle, color: n.read ? TOKENS.mute : TOKENS.off, textAlign: "left" }}
+                >
+                  {n.message}
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -128,7 +168,7 @@ export default function NotificationBell({ user }) {
 
       <button
         className="nb-bell"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleToggle}
         aria-label="Notifications"
       >
         Alerts

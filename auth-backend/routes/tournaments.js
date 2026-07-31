@@ -5,6 +5,7 @@ import Registration from "../models/Registration.js";
 import User from "../models/User.js";
 import Match from "../models/Match.js";
 import { requireAuth, requireAdmin } from "../middleware/authMiddleware.js";
+import { notify } from "../services/notify.js";
 
 const router = Router();
 
@@ -469,6 +470,13 @@ router.post("/:slug/teams/:teamId/requests/:userId/accept", requireAuth, async (
     }
     await captainReg.save();
 
+    notify(
+      req.params.userId,
+      "tournament_join_accepted",
+      `You're confirmed on ${captainReg.teamName} for ${tournament.title}.`,
+      `/tournaments/${tournament.slug}`
+    );
+
     res.status(200).json({ message: "Player added to your roster." });
   } catch (err) {
     if (err.code === 11000) {
@@ -500,6 +508,13 @@ router.post("/:slug/teams/:teamId/requests/:userId/reject", requireAuth, async (
       (r) => r.user.toString() !== req.params.userId
     );
     await captainReg.save();
+
+    notify(
+      req.params.userId,
+      "tournament_join_rejected",
+      `Your request to join ${captainReg.teamName} for ${tournament.title} was declined.`,
+      `/tournaments/${tournament.slug}`
+    );
 
     res.status(200).json({ message: "Request declined." });
   } catch (err) {

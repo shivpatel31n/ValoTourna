@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import reynaBg from "./assets/reyna.png";
 import { Link } from "react-router-dom";
-import Reveal from "./components/Reveal";
 
 const DISCORD_URL = "https://discord.gg/7RCDt277Y";
 
@@ -485,7 +484,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         </div>
       </section>
 
-      <Reveal
+      <section
         id="teams"
         style={{
           padding: "90px 0",
@@ -570,7 +569,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
               >
                 <div>
                   <h3 className="cc-h3" style={{ fontSize: 18 }}>
-                    Nullpoint Academy
+                    Shopify Rebellion
                   </h3>
                   <span
                     className="cc-mono"
@@ -595,9 +594,9 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
               </div>
 
               {[
-                { role: "DUELIST", name: "kessu", rank: "Immortal 1" },
-                { role: "CONTROLLER", name: "vane.gg", rank: "Ascendant 3" },
-                { role: "INITIATOR", name: "brix", rank: "Ascendant 2" },
+                { role: "DUELIST", name: "SR Noia", rank: "Immortal 1" },
+                { role: "CONTROLLER", name: "SR Alexis", rank: "Ascendant 3" },
+                { role: "INITIATOR", name: "SR dodonut", rank: "Ascendant 2" },
                 { role: "SENTINEL", name: "Open slot", rank: "—", empty: true },
                 { role: "FLEX", name: "Open slot", rank: "—", empty: true },
               ].map((r) => (
@@ -627,7 +626,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
             </div>
           </div>
         </div>
-      </Reveal>
+      </section>
 
       <section
         id="customs"

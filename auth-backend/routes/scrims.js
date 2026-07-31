@@ -3,6 +3,7 @@ import ScrimRequest, { RANK_ORDER } from "../models/ScrimRequest.js";
 import Team from "../models/Team.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { postToDiscord } from "../services/discordWebhook.js";
+import { notify } from "../services/notify.js";
 
 const router = Router();
 
@@ -257,6 +258,13 @@ router.post("/:id/requests/:teamId/accept", requireAuth, async (req, res) => {
     scrim.requests = [];
     await scrim.save();
 
+    notify(
+      request.requestedBy,
+      "scrim_matched",
+      `${team.name} accepted your scrim request.`,
+      `/scrims/${scrim._id}`
+    );
+
     const populated = await populateScrim(ScrimRequest.findById(scrim._id));
     res.status(200).json({ scrim: populated.toJSON() });
   } catch (err) {
@@ -276,8 +284,19 @@ router.post("/:id/requests/:teamId/reject", requireAuth, async (req, res) => {
       return res.status(403).json({ message: "Only the posting team's captain can decline a scrim request." });
     }
 
+    const request = scrim.requests.find((r) => r.team.toString() === req.params.teamId);
+
     scrim.requests = scrim.requests.filter((r) => r.team.toString() !== req.params.teamId);
     await scrim.save();
+
+    if (request) {
+      notify(
+        request.requestedBy,
+        "scrim_rejected",
+        `${team.name} declined your scrim request.`,
+        `/scrims/${scrim._id}`
+      );
+    }
 
     const populated = await populateScrim(ScrimRequest.findById(scrim._id));
     res.status(200).json({ scrim: populated.toJSON() });
