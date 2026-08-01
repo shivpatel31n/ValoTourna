@@ -208,11 +208,16 @@ export default function AdminTournamentsPage({ user }) {
     <Shell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 8 }}>
         <h1 className="at-h" style={{ fontSize: 34 }}>Manage Tournaments</h1>
-        {editingSlug === null && (
-          <button className="at-btn at-mono" onClick={startCreate} style={primaryBtnStyle}>
-            + New tournament
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="at-btn at-mono" onClick={() => navigate("/admin/users")} style={secondaryBtnStyle}>
+            Manage Users
           </button>
-        )}
+          {editingSlug === null && (
+            <button className="at-btn at-mono" onClick={startCreate} style={primaryBtnStyle}>
+              + New tournament
+            </button>
+          )}
+        </div>
       </div>
       <p style={{ color: TOKENS.mute, fontSize: 14, marginBottom: 30 }}>Admin only. Changes are live immediately.</p>
 

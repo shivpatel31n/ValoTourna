@@ -23,6 +23,8 @@ function serializeUser(user) {
     id: user._id.toString(),
     username: user.username,
     email: user.email,
+    authProvider: user.authProvider,
+    emailVerified: user.emailVerified,
     riotName: user.riotName,
     riotTag: user.riotTag,
     region: user.region,
@@ -37,7 +39,7 @@ function serializeUser(user) {
 // Same shape, minus email — used anywhere another visitor can see this
 // user's data: the players list and individual public profiles.
 function serializePublicUser(user) {
-  const { email, ...rest } = serializeUser(user);
+  const { email, authProvider, emailVerified, ...rest } = serializeUser(user);
   return rest;
 }
 

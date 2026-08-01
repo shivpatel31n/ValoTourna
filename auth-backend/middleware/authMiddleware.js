@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -12,6 +12,22 @@ export function requireAuth(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Checked fresh on every request (not just at login) so a ban takes
+    // effect immediately instead of waiting up to JWT_EXPIRES_IN for the
+    // token to expire on its own.
+    const user = await User.findById(decoded.id).select("banned banReason");
+    if (!user) {
+      return res.status(401).json({ message: "Invalid or expired token." });
+    }
+    if (user.banned) {
+      return res.status(403).json({
+        message: user.banReason
+          ? `Your account has been suspended: ${user.banReason}`
+          : "Your account has been suspended.",
+      });
+    }
+
     req.user = decoded; // { id, email, username }
     next();
   } catch (err) {

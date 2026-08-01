@@ -91,6 +91,48 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    banned: {
+      type: Boolean,
+      default: false,
+    },
+    banReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    bannedAt: {
+      type: Date,
+      default: null,
+    },
+    // Set only while a "forgot password" reset is in flight. We store a
+    // hash of the token (never the raw token itself — same principle as
+    // passwordHash) so a database leak alone can't be used to reset
+    // someone's password; the raw token only ever exists in the emailed
+    // link and briefly in memory on this server.
+    resetPasswordTokenHash: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+    },
+    // Google accounts are verified automatically at creation — Google
+    // already confirmed the email is real before ever handing us a token
+    // (see googleAuth.js's email_verified check). Local accounts start
+    // unverified and get a link emailed at signup.
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verifyEmailTokenHash: {
+      type: String,
+      default: null,
+    },
+    verifyEmailExpires: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -100,6 +142,10 @@ const userSchema = new mongoose.Schema(
         delete ret._id;
         delete ret.__v;
         delete ret.passwordHash;
+        delete ret.resetPasswordTokenHash;
+        delete ret.resetPasswordExpires;
+        delete ret.verifyEmailTokenHash;
+        delete ret.verifyEmailExpires;
       },
     },
   }

@@ -9,6 +9,7 @@ import teamRoutes from "./routes/teams.js";
 import scrimRoutes from "./routes/scrims.js";
 import notificationRoutes from "./routes/notifications.js";
 import statsRoutes from "./routes/stats.js";
+import adminRoutes from "./routes/admin.js";
 import { scheduleRankRefresh } from "./services/rankRefreshJob.js";
 import { requireAuth } from "./middleware/authMiddleware.js";
 import User from "./models/User.js";
@@ -27,6 +28,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/scrims", scrimRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Refetches the full user from the DB rather than trusting the JWT payload
 // (which only carries {id, email, username}) — otherwise fields like

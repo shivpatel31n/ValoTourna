@@ -13,6 +13,7 @@ const TOKENS = {
 };
 
 const API_BASE = "http://localhost:5000/api/players";
+const AUTH_API_BASE = "http://localhost:5000/api/auth";
 const TOURNAMENTS_API_BASE = "http://localhost:5000/api/tournaments";
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
@@ -35,6 +36,15 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
   const [refreshing, setRefreshing] = useState(false);
   const [form, setForm] = useState({ username: "", role: "", lookingForTeam: true });
   const [respondingSlug, setRespondingSlug] = useState(null);
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -129,6 +139,55 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
       setError(err.message);
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPwError("");
+    setPwSuccess("");
+
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError("New passwords don't match.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch(`${AUTH_API_BASE}/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          currentPassword: pwForm.currentPassword,
+          newPassword: pwForm.newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not change password.");
+      setPwSuccess("Password changed.");
+      setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      setPwError(err.message);
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    setResendingVerification(true);
+    setResendMessage("");
+    try {
+      const res = await fetch(`${AUTH_API_BASE}/resend-verification`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Couldn't resend the email.");
+      setResendMessage(data.message || "Verification email sent.");
+    } catch (err) {
+      setResendMessage(err.message);
+    } finally {
+      setResendingVerification(false);
     }
   }
 
@@ -283,6 +342,34 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
 
         {!loading && profile && (
           <>
+            {profile.authProvider !== "google" && !profile.emailVerified && (
+              <div
+                style={{
+                  background: "rgba(217, 58, 103, 0.1)",
+                  border: `1px solid ${TOKENS.signal}`,
+                  padding: "14px 18px",
+                  marginBottom: 24,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, color: TOKENS.off, marginBottom: 2 }}>
+                    Your email isn't verified yet.
+                  </div>
+                  {resendMessage && (
+                    <div className="pf-mono" style={{ fontSize: 12, color: TOKENS.mute }}>{resendMessage}</div>
+                  )}
+                </div>
+                <button onClick={handleResendVerification} disabled={resendingVerification} style={editButtonStyle}>
+                  {resendingVerification ? "Sending…" : "Resend verification email"}
+                </button>
+              </div>
+            )}
+
             <div
               className="pf-card"
               style={{
@@ -373,6 +460,104 @@ export default function ProfilePage({ user, onRequireAuth, onLogout }) {
                 </form>
               )}
             </div>
+
+            {profile.authProvider !== "google" && (
+              <div
+                className="pf-card"
+                style={{
+                  background: TOKENS.panel,
+                  border: `1px solid ${TOKENS.steel}`,
+                  padding: 24,
+                  marginBottom: 32,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showChangePassword ? 20 : 0 }}>
+                  <h2 className="pf-h" style={{ fontSize: 18 }}>Password</h2>
+                  <button
+                    onClick={() => {
+                      setShowChangePassword((v) => !v);
+                      setPwError("");
+                      setPwSuccess("");
+                    }}
+                    style={editButtonStyle}
+                  >
+                    {showChangePassword ? "Cancel" : "Change Password"}
+                  </button>
+                </div>
+
+                {showChangePassword && (
+                  <form onSubmit={handleChangePassword}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 20 }}>
+                      <div>
+                        <label className="pf-mono" style={labelStyle}>CURRENT PASSWORD</label>
+                        <input
+                          type="password"
+                          value={pwForm.currentPassword}
+                          onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                          required
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className="pf-mono" style={labelStyle}>NEW PASSWORD</label>
+                        <input
+                          type="password"
+                          value={pwForm.newPassword}
+                          onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+                          required
+                          minLength={8}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className="pf-mono" style={labelStyle}>CONFIRM NEW PASSWORD</label>
+                        <input
+                          type="password"
+                          value={pwForm.confirmPassword}
+                          onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                          required
+                          minLength={8}
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    {pwError && (
+                      <div
+                        style={{
+                          background: "rgba(217, 58, 103, 0.12)",
+                          border: `1px solid ${TOKENS.signal}`,
+                          color: TOKENS.signal,
+                          fontSize: 13,
+                          padding: "10px 14px",
+                          marginBottom: 16,
+                        }}
+                      >
+                        {pwError}
+                      </div>
+                    )}
+                    {pwSuccess && (
+                      <div
+                        style={{
+                          background: "rgba(62, 214, 197, 0.1)",
+                          border: `1px solid ${TOKENS.cyan}`,
+                          color: TOKENS.cyan,
+                          fontSize: 13,
+                          padding: "10px 14px",
+                          marginBottom: 16,
+                        }}
+                      >
+                        {pwSuccess}
+                      </div>
+                    )}
+
+                    <button type="submit" disabled={changingPassword} style={saveButtonStyle}>
+                      {changingPassword ? "Saving…" : "Update Password"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
 
             {history.some((h) => h.registration.status === "pending") && (
               <>

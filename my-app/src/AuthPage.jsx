@@ -40,6 +40,10 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
   const [googleProfile, setGoogleProfile] = useState(null); // { credential, email, suggestedUsername }
   const googleButtonRef = useRef(null);
 
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+
   const isSignup = mode === "signup";
 
   useEffect(() => {
@@ -138,6 +142,26 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Couldn't finish creating your account.");
       finishAuth(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Something went wrong.");
+      setForgotSent(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -266,7 +290,110 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
           Clutch Circuit
         </div>
 
-        {googleProfile ? (
+        {forgotMode ? (
+          <>
+            <h2 className="cc-auth-h1" style={{ fontSize: 24, marginBottom: 6 }}>
+              Reset your password
+            </h2>
+
+            {forgotSent ? (
+              <>
+                <p style={{ color: TOKENS.mute, fontSize: 14, marginBottom: 26, lineHeight: 1.6 }}>
+                  If an account exists for <strong style={{ color: TOKENS.off }}>{forgotEmail}</strong>,
+                  a reset link is on its way — check your inbox (and spam folder).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  style={{
+                    width: "100%",
+                    padding: "13px 22px",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    letterSpacing: "0.03em",
+                    textTransform: "uppercase",
+                    border: `1px solid ${TOKENS.steel}`,
+                    background: "transparent",
+                    color: TOKENS.off,
+                    cursor: "pointer",
+                  }}
+                >
+                  Back to login
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={{ color: TOKENS.mute, fontSize: 14, marginBottom: 26 }}>
+                  Enter your account email and we'll send you a link to set a new password.
+                </p>
+                <form onSubmit={handleForgotPassword}>
+                  <div style={{ marginBottom: 20 }}>
+                    <label className="cc-auth-mono" style={labelStyle}>EMAIL</label>
+                    <input
+                      className="cc-auth-input"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {error && (
+                    <div
+                      style={{
+                        background: "rgba(217, 58, 103, 0.12)",
+                        border: `1px solid ${TOKENS.signal}`,
+                        color: TOKENS.signal,
+                        fontSize: 13,
+                        padding: "10px 14px",
+                        marginBottom: 18,
+                      }}
+                    >
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      width: "100%",
+                      padding: "13px 22px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      letterSpacing: "0.03em",
+                      textTransform: "uppercase",
+                      border: `1px solid ${TOKENS.signal}`,
+                      background: TOKENS.signal,
+                      color: "#0B0D0F",
+                      clipPath:
+                        "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      opacity: loading ? 0.7 : 1,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {loading ? "Sending…" : "Send reset link"}
+                  </button>
+                </form>
+                <p style={{ textAlign: "center" }}>
+                  <span
+                    className="cc-auth-tab"
+                    onClick={() => {
+                      setError("");
+                      setForgotMode(false);
+                    }}
+                    style={{ color: TOKENS.cyan, fontWeight: 500, fontSize: 13, cursor: "pointer" }}
+                  >
+                    Back to login
+                  </span>
+                </p>
+              </>
+            )}
+          </>
+        ) : googleProfile ? (
           <>
             <h2 className="cc-auth-h1" style={{ fontSize: 24, marginBottom: 6 }}>
               Almost there
@@ -555,6 +682,13 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
             <div style={{ textAlign: "right", marginBottom: 20 }}>
               <a
                 href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setError("");
+                  setForgotSent(false);
+                  setForgotEmail(form.email);
+                  setForgotMode(true);
+                }}
                 className="cc-auth-mono"
                 style={{ fontSize: 12, color: TOKENS.cyan, textDecoration: "none" }}
               >

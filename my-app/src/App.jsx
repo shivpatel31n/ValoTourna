@@ -13,7 +13,10 @@ import ScrimDetailPage from "./ScrimDetailPage.jsx";
 import TournamentsPage from "./TournamentsPage.jsx";
 import TournamentDetailPage from "./TournamentDetailPage.jsx";
 import AdminTournamentsPage from "./AdminTournamentsPage.jsx";
+import AdminUsersPage from "./AdminUsersPage.jsx";
 import ProfilePage from "./ProfilePage.jsx";
+import ResetPasswordPage from "./ResetPasswordPage.jsx";
+import VerifyEmailPage from "./VerifyEmailPage.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 
 function App() {
@@ -108,11 +111,14 @@ function App() {
         />
         <Route path="/tournaments" element={<TournamentsPage />} />
         <Route path="/admin/tournaments" element={<AdminTournamentsPage user={user} />} />
+        <Route path="/admin/users" element={<AdminUsersPage user={user} />} />
         <Route path="/tournaments/:id" element={<TournamentDetailPage user={user} />} />
         <Route
           path="/profile"
           element={<ProfilePage user={user} onRequireAuth={() => setShowAuth(true)} onLogout={handleLogout} />}
         />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
       </Routes>
 
       {showAuth && (
