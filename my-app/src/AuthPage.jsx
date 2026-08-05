@@ -55,10 +55,13 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleCredential,
       });
+      // Measure the actual container instead of hardcoding a width — a fixed
+      // 340px overflows the modal's content area (~255-280px) on narrow phones.
+      const containerWidth = Math.floor(googleButtonRef.current.getBoundingClientRect().width) || 340;
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: "filled_black",
         size: "large",
-        width: 340,
+        width: containerWidth,
         text: "continue_with",
       });
     }
@@ -228,9 +231,14 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
         .cc-auth-input:focus { outline:none; border-color:${TOKENS.cyan}; }
         .cc-auth-tab { cursor:pointer; transition: color .15s, border-color .15s; }
         .cc-auth-close:hover { color: ${TOKENS.off} !important; border-color: ${TOKENS.cyan} !important; }
+        .cc-auth-card { padding: 40px; }
+        @media (max-width: 480px) {
+          .cc-auth-card { padding: 24px; }
+        }
       `}</style>
 
       <div
+        className="cc-auth-card"
         style={{
           position: "relative",
           width: "100%",
@@ -238,7 +246,6 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
           background: TOKENS.panel,
           border: `1px solid ${TOKENS.steel}`,
           clipPath: "polygon(24px 0, 100% 0, 100% 100%, 0 100%, 0 24px)",
-          padding: 40,
         }}
       >
         {onClose && (
@@ -595,9 +602,9 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
                   onChange={handleChange}
                   placeholder="kessu"
                   required
-                  style={{ ...inputStyle, flex: 2 }}
+                  style={{ ...inputStyle, flex: 2, minWidth: 0 }}
                 />
-                <span style={{ color: TOKENS.mute, fontSize: 16 }}>#</span>
+                <span style={{ color: TOKENS.mute, fontSize: 16, flexShrink: 0 }}>#</span>
                 <input
                   className="cc-auth-input"
                   type="text"
@@ -606,7 +613,7 @@ export default function AuthPage({ onAuthSuccess, onClose }) {
                   onChange={handleChange}
                   placeholder="1234"
                   required
-                  style={{ ...inputStyle, flex: 1 }}
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
                 />
               </div>
               <p style={{ fontSize: 11, color: TOKENS.mute, marginTop: 6 }}>

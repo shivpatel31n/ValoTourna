@@ -292,27 +292,17 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
       <h2 className="td-h" style={{ fontSize: 20, marginBottom: 16 }}>Roster</h2>
       <div style={{ display: "grid", gap: 10, marginBottom: 30 }}>
         <RosterRow player={team.captain} tag="Captain" />
-        {isMember ? (
-          <>
-            {team.members.map((m) => (
-              <RosterRow
-                key={m.user?.id}
-                player={m.user}
-                tag={m.role}
-                onRemove={isCaptain ? () => handleRemove(m.user.id) : null}
-                onMakeCaptain={isCaptain ? () => handleTransferCaptain(m.user.id, m.user.username) : null}
-              />
-            ))}
-            {team.members.length === 0 && (
-              <p className="td-mono" style={{ color: TOKENS.mute, fontSize: 13 }}>No teammates yet.</p>
-            )}
-          </>
-        ) : (
-          memberCount > 0 && (
-            <p className="td-mono" style={{ color: TOKENS.mute, fontSize: 13 }}>
-              {memberCount} other player{memberCount === 1 ? "" : "s"} on this roster — visible to teammates only.
-            </p>
-          )
+        {team.members.map((m) => (
+          <RosterRow
+            key={m.user?.id}
+            player={m.user}
+            tag={m.role}
+            onRemove={isCaptain ? () => handleRemove(m.user.id) : null}
+            onMakeCaptain={isCaptain ? () => handleTransferCaptain(m.user.id, m.user.username) : null}
+          />
+        ))}
+        {team.members.length === 0 && (
+          <p className="td-mono" style={{ color: TOKENS.mute, fontSize: 13 }}>No teammates yet.</p>
         )}
       </div>
 

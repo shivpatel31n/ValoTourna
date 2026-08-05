@@ -227,12 +227,12 @@ export default function AdminTournamentsPage({ user }) {
             {editingSlug === "" ? "New tournament" : `Editing: ${form.title}`}
           </h2>
 
-          <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
-            <div style={{ flex: 3 }}>
+          <div className="at-form-row" style={{ display: "flex", gap: 12, marginBottom: 18 }}>
+            <div style={{ flex: 3, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>TITLE</label>
               <input name="title" value={form.title} onChange={handleChange} style={inputStyle} required />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>STATUS</label>
               <select name="status" value={form.status} onChange={handleChange} style={inputStyle}>
                 {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -245,27 +245,27 @@ export default function AdminTournamentsPage({ user }) {
             <input name="format" value={form.format} onChange={handleChange} placeholder="e.g. 5v5 — Single elimination — Bo1" style={inputStyle} />
           </div>
 
-          <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
-            <div style={{ flex: 1 }}>
+          <div className="at-form-row" style={{ display: "flex", gap: 12, marginBottom: 18 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>TEAM SIZE</label>
               <input type="number" name="teamSize" value={form.teamSize} onChange={handleChange} min={1} style={inputStyle} required />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>MAX TEAMS</label>
               <input type="number" name="maxTeams" value={form.maxTeams} onChange={handleChange} min={1} style={inputStyle} required />
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
-            <div style={{ flex: 1 }}>
+          <div className="at-form-row" style={{ display: "flex", gap: 12, marginBottom: 18 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>START DATE</label>
               <input type="datetime-local" name="startDate" value={form.startDate} onChange={handleChange} style={inputStyle} required />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>REGISTRATION DEADLINE</label>
               <input type="datetime-local" name="regDeadline" value={form.regDeadline} onChange={handleChange} style={inputStyle} required />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="at-mono" style={labelStyle}>END DATE (optional)</label>
               <input type="datetime-local" name="endDate" value={form.endDate} onChange={handleChange} style={inputStyle} />
             </div>
@@ -287,12 +287,12 @@ export default function AdminTournamentsPage({ user }) {
           </div>
 
           {form.status === "past" && (
-            <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
-              <div style={{ flex: 1 }}>
+            <div className="at-form-row" style={{ display: "flex", gap: 12, marginBottom: 18 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <label className="at-mono" style={labelStyle}>CHAMPION</label>
                 <input name="champion" value={form.champion} onChange={handleChange} style={inputStyle} />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <label className="at-mono" style={labelStyle}>RUNNER-UP</label>
                 <input name="runnerUp" value={form.runnerUp} onChange={handleChange} style={inputStyle} />
               </div>
@@ -341,8 +341,12 @@ export default function AdminTournamentsPage({ user }) {
 function Shell({ children }) {
   const navigate = useNavigate();
   return (
-    <div style={{ minHeight: "100vh", background: TOKENS.ink, color: TOKENS.off, fontFamily: "'Inter', sans-serif", padding: "60px 32px" }}>
+    <div className="at-shell" style={{ minHeight: "100vh", background: TOKENS.ink, color: TOKENS.off, fontFamily: "'Inter', sans-serif" }}>
       <style>{`
+        .at-shell { padding: 60px 32px; }
+        @media (max-width: 480px) {
+          .at-shell { padding: 40px 16px; }
+        }
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
         .at-h { font-family:'Rajdhani', sans-serif; text-transform:uppercase; letter-spacing:0.02em; }
         .at-mono { font-family:'JetBrains Mono', monospace; }
@@ -350,6 +354,9 @@ function Shell({ children }) {
         .at-back:hover { color: ${TOKENS.cyan}; }
         .at-btn { cursor:pointer; transition: opacity .15s; }
         .at-btn:hover { opacity: 0.85; }
+        @media (max-width: 560px) {
+          .at-form-row { flex-direction: column; }
+        }
       `}</style>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
         <div

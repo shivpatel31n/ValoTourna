@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import reynaBg from "./assets/reyna.png";
 import { Link } from "react-router-dom";
 
 const DISCORD_URL = "https://discord.gg/7RCDt277Y";
@@ -113,17 +112,31 @@ function TournamentCard({ t }) {
 export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [stats, setStats] = useState(null);
+  const [featuredTournaments, setFeaturedTournaments] = useState([]);
+  
+  // Alert State
+  const [alert, setAlert] = useState(null);
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
+
+  // Auto-hide alert after 5 seconds
+  useEffect(() => {
+    if (alert) {
+      const timer = setTimeout(() => setAlert(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alert]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const res = await fetch("/api/stats");
+        if (!res.ok) throw new Error("Failed to load stats.");
         const data = await res.json();
         setStats(data);
       } catch (err) {
         console.error("Failed to fetch stats:", err);
+        setAlert({ type: "error", message: "Failed to connect to servers." });
       }
     };
     fetchStats();
@@ -131,17 +144,17 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
     return () => clearInterval(interval);
   }, []);
 
-  const [featuredTournaments, setFeaturedTournaments] = useState([]);
-
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
         const res = await fetch("/api/tournaments");
+        if (!res.ok) throw new Error("Failed to load tournaments.");
         const data = await res.json();
         const list = data.tournaments || [];
         setFeaturedTournaments(list.filter((t) => t.status !== "past").slice(0, 6));
       } catch (err) {
         console.error("Failed to fetch featured tournaments:", err);
+        setAlert({ type: "error", message: "Failed to retrieve tournaments." });
       }
     };
     fetchFeatured();
@@ -173,7 +186,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         .cc-customs-grid { display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
         .cc-split { display:grid; grid-template-columns: 1fr 1fr; gap:60px; align-items:center; }
         @media (max-width: 860px) {
-          .cc-nav-links { display:none; }
+          .cc-nav-links { display:none !important; }
           .cc-menu-btn { display:block !important; }
           .cc-grid { grid-template-columns: 1fr; }
           .cc-customs-grid { grid-template-columns: 1fr; }
@@ -181,6 +194,52 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
         }
         @media (prefers-reduced-motion: reduce) {
           * { animation: none !important; transition: none !important; }
+        }
+        .cc-hero {
+          background: ${TOKENS.ink};
+        }
+        .cc-hero-waves {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+        }
+        @media (max-width: 860px) {
+          .cc-hero-waves { display: none; }
+        }
+        .cc-hero-outline {
+          position: absolute;
+          left: -6px;
+          bottom: -4vw;
+          z-index: 0;
+          font-family: 'Rajdhani', sans-serif;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: clamp(100px, 18vw, 290px); 
+          line-height: 0.85;
+          letter-spacing: 0.08em; 
+          color: transparent;
+          -webkit-text-stroke: 1px rgba(186, 189, 192, 0.09);
+          white-space: nowrap;
+          pointer-events: none;
+          user-select: none;
+          display: flex;
+          flex-direction: column;
+        }
+        @keyframes cc-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .cc-spotlight-card {
+          animation: cc-float 5s ease-in-out infinite;
+          backdrop-filter: blur(6px);
+        }
+        @media (max-width: 860px) {
+          .cc-hero-outline, .cc-spotlight-card { display: none; }
+        }
+        @keyframes cc-slide-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
@@ -306,17 +365,35 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
       </header>
 
       <section
+        className="cc-hero"
         style={{
           position: "relative",
           padding: "120px 32px 100px",
           overflow: "hidden",
           borderBottom: `1px solid rgba(42, 46, 51, 0.4)`,
-          backgroundImage: `linear-gradient(to right, rgba(11,13,15,0.97) 0%, rgba(11,13,15,0.90) 30%, rgba(11,13,15,0.65) 60%, rgba(11,13,15,0.35) 100%), url(${reynaBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center right",
-          backgroundRepeat: "no-repeat",
         }}
       >
+        <div className="cc-hero-outline" aria-hidden="true">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <span key={i}>Clutch</span>
+          ))}
+        </div>
+        <svg
+          className="cc-hero-waves"
+          viewBox="0 0 700 420"
+          preserveAspectRatio="xMaxYMid slice"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="ccSweepGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={TOKENS.cyan} />
+              <stop offset="100%" stopColor={TOKENS.signal} />
+            </linearGradient>
+          </defs>
+          <path d="M700,0 L700,420 L390,420 C450,330 370,240 450,150 C530,60 460,40 530,0 Z" fill={TOKENS.panel} />
+          <path d="M700,0 L700,420 L460,420 C530,330 440,240 520,150 C600,60 530,40 600,0 Z" fill={TOKENS.steel} />
+          <path d="M700,30 L700,420 L505,420 C565,340 495,260 565,180 C635,100 585,55 650,40 Z" fill="url(#ccSweepGrad)" opacity={0.9} />
+        </svg>
         <div
           aria-hidden="true"
           style={{
@@ -425,6 +502,78 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
               ))}
             </div>
           </div>
+        </div>
+
+        <div
+          className="cc-spotlight-card"
+          style={{
+            position: "absolute",
+            right: 40,
+            bottom: 70,
+            zIndex: 3,
+            width: 240,
+            padding: "18px 20px",
+            background: "rgba(20, 23, 26, 0.85)",
+            border: `1px solid ${TOKENS.steel}`,
+            clipPath:
+              "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
+          }}
+        >
+          <div
+            className="cc-mono"
+            style={{
+              fontSize: 10,
+              color: TOKENS.cyan,
+              letterSpacing: "0.08em",
+              marginBottom: 10,
+            }}
+          >
+            PLAYER SPOTLIGHT
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 4,
+            }}
+          >
+            <span className="cc-h3" style={{ fontSize: 16, fontWeight: 700 }}>
+              SR Noia
+            </span>
+            <span
+              className="cc-mono"
+              style={{ fontSize: 10, color: TOKENS.cyan, letterSpacing: "0.04em" }}
+            >
+              IMMORTAL 1
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: TOKENS.mute, marginBottom: 14 }}>
+            Duelist &middot; Premier Div 2
+          </div>
+          <Link
+            to="/players"
+            className="cc-btn cc-btn-primary"
+            style={{ width: "100%", justifyContent: "center", padding: "9px 0", fontSize: 12 }}
+          >
+            View profile &rarr;
+          </Link>
+        </div>
+
+        <div
+          className="cc-mono"
+          style={{
+            position: "absolute",
+            left: 32,
+            bottom: 24,
+            zIndex: 2,
+            fontSize: 11,
+            color: TOKENS.mute,
+            letterSpacing: "0.1em",
+          }}
+        >
+          CLUTCH CIRCUIT // SEASON 01
         </div>
       </section>
 
@@ -807,67 +956,82 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
             <div
               className="cc-mono"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                fontSize: 13,
+                display: "block",
+                marginTop: 20,
+                fontSize: 12,
                 color: TOKENS.mute,
-                marginTop: 26,
               }}
             >
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  background: TOKENS.cyan,
-                  borderRadius: "50%",
-                  animation: "cc-pulse 1.6s ease-in-out infinite",
-                  display: "inline-block",
-                }}
-              />
-              {stats.discordOnline.toLocaleString()} members online now
+              {stats.discordOnline} members online
             </div>
           )}
         </div>
       </section>
 
-      <footer style={{ padding: "40px 32px" }}>
+      {/* Riot Legal Footer */}
+      <footer style={{ padding: "40px 32px", background: TOKENS.ink, textAlign: "center" }}>
+        <p style={{ color: TOKENS.mute, fontSize: 12, maxWidth: 800, margin: "0 auto", lineHeight: 1.6 }}>
+          Clutch Circuit isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games 
+          or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all 
+          associated properties are trademarks or registered trademarks of Riot Games, Inc.
+        </p>
+      </footer>
+
+      {/* Hidden-by-default Toast Alert */}
+      {alert && (
         <div
           style={{
-            maxWidth: 1180,
-            margin: "0 auto",
+            position: "fixed",
+            bottom: 32,
+            right: 32,
+            zIndex: 100,
+            background: TOKENS.panel2,
+            border: `1px solid ${alert.type === "error" ? TOKENS.signal : TOKENS.cyan}`,
+            padding: "16px 24px",
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
-            flexWrap: "wrap",
             gap: 16,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+            clipPath: "polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)",
+            animation: "cc-slide-up 0.3s ease-out forwards",
           }}
         >
-          <span className="cc-mono" style={{ fontSize: 12, color: TOKENS.mute }}>
-            CLUTCH CIRCUIT — fan-run community, not affiliated with Riot Games
+          <span 
+            className="cc-mono" 
+            style={{ 
+              color: alert.type === "error" ? TOKENS.signal : TOKENS.cyan,
+              fontSize: 12,
+              letterSpacing: "0.05em"
+            }}
+          >
+            {alert.type === "error" ? "// ERROR" : "// ALERT"}
           </span>
-          <div style={{ display: "flex", gap: 24 }}>
-            <a className="cc-link" href="#tournaments" style={{ fontSize: 13, color: TOKENS.mute }}>
-              Tournaments
-            </a>
-            <a className="cc-link" href="#teams" style={{ fontSize: 13, color: TOKENS.mute }}>
-              Teams
-            </a>
-            <a className="cc-link" href="#customs" style={{ fontSize: 13, color: TOKENS.mute }}>
-              Customs
-            </a>
-            <a
-              className="cc-link"
-              href={DISCORD_URL}
-              target="_blank"
-              rel="noreferrer"
-              style={{ fontSize: 13, color: TOKENS.mute }}
-            >
-              Discord
-            </a>
-          </div>
+          
+          <span style={{ fontSize: 14, color: TOKENS.off }}>
+            {alert.message}
+          </span>
+          
+          <button
+            onClick={() => setAlert(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: TOKENS.mute,
+              fontSize: 16,
+              cursor: "pointer",
+              marginLeft: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={(e) => (e.target.style.color = TOKENS.off)}
+            onMouseLeave={(e) => (e.target.style.color = TOKENS.mute)}
+          >
+            ✕
+          </button>
         </div>
-      </footer>
+      )}
     </div>
   );
 }

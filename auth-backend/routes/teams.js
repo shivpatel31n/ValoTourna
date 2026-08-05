@@ -44,18 +44,12 @@ function isMember(team, userId) {
 function serializeTeamForViewer(team, viewerId) {
   const json = team.toJSON();
   const viewerIsCaptain = !!viewerId && team.captain._id.toString() === viewerId;
-  const viewerIsMember =
-    viewerIsCaptain || (!!viewerId && team.members.some((m) => m.user._id.toString() === viewerId));
 
   json.memberCount = json.members.length;
 
   if (!viewerIsCaptain) {
     json.myRequestPending = !!viewerId && team.pendingRequests.some((r) => r.user._id.toString() === viewerId);
     delete json.pendingRequests;
-  }
-
-  if (!viewerIsMember) {
-    json.members = [];
   }
 
   return json;

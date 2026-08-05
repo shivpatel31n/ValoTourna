@@ -104,7 +104,7 @@ export default function NotificationBell({ user }) {
             position: "absolute",
             bottom: 56,
             right: 0,
-            width: 300,
+            width: "min(300px, calc(100vw - 48px))",
             maxHeight: 420,
             overflowY: "auto",
             background: TOKENS.panel,

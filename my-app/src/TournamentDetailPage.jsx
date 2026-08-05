@@ -187,7 +187,7 @@ export default function TournamentDetailPage({ user }) {
 
   if (loadingTournament) {
     return (
-      <div style={pageWrap}>
+      <div className="td-page-wrap" style={pageWrap}>
         <style>{fontImport}</style>
         <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
           <p style={{ color: TOKENS.mute }}>Loading tournament…</p>
@@ -198,7 +198,7 @@ export default function TournamentDetailPage({ user }) {
 
   if (notFound || !tournament) {
     return (
-      <div style={pageWrap}>
+      <div className="td-page-wrap" style={pageWrap}>
         <style>{fontImport}</style>
         <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
           <h1 className="td-h" style={{ fontSize: 28, marginBottom: 12 }}>
@@ -389,7 +389,7 @@ export default function TournamentDetailPage({ user }) {
   }
 
   return (
-    <div style={pageWrap}>
+    <div className="td-page-wrap" style={pageWrap}>
       <style>{fontImport}</style>
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -599,7 +599,7 @@ export default function TournamentDetailPage({ user }) {
 
                 {registration.type === "team" && registration.isCaptain && (
                   <div style={{ marginBottom: 18 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
                       <div className="td-mono" style={{ fontSize: 11, color: TOKENS.mute, letterSpacing: "0.05em" }}>
                         RECRUITING
                       </div>
@@ -786,12 +786,12 @@ export default function TournamentDetailPage({ user }) {
         >
           <form
             onSubmit={handleJoin}
+            className="td-modal-card"
             style={{
               width: "100%",
               maxWidth: 420,
               background: TOKENS.panel,
               border: `1px solid ${TOKENS.steel}`,
-              padding: 32,
             }}
           >
             <h3 className="td-h" style={{ fontSize: 20, marginBottom: 20 }}>
@@ -894,12 +894,12 @@ export default function TournamentDetailPage({ user }) {
         >
           <form
             onSubmit={handleSendJoinRequest}
+            className="td-modal-card"
             style={{
               width: "100%",
               maxWidth: 420,
               background: TOKENS.panel,
               border: `1px solid ${TOKENS.steel}`,
-              padding: 32,
             }}
           >
             <h3 className="td-h" style={{ fontSize: 20, marginBottom: 20 }}>
@@ -1008,7 +1008,6 @@ const pageWrap = {
   background: TOKENS.ink,
   color: TOKENS.off,
   fontFamily: "'Inter', sans-serif",
-  padding: "60px 32px 40px",
 };
 
 const fontImport = `
@@ -1020,6 +1019,12 @@ const fontImport = `
   .td-btn:hover { border-color:${TOKENS.cyan}; color:${TOKENS.cyan}; }
   .td-btn-primary { background:${TOKENS.signal}; border-color:${TOKENS.signal}; color:#0B0D0F; }
   .td-btn-primary:hover { background:#ff5a6b; color:#0B0D0F; }
+  .td-page-wrap { padding: 60px 32px 40px; }
+  .td-modal-card { padding: 32px; }
+  @media (max-width: 480px) {
+    .td-page-wrap { padding: 40px 16px 32px; }
+    .td-modal-card { padding: 20px; }
+  }
 `;
 
 const labelStyle = {
