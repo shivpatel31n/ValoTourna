@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -22,6 +23,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
 
 export default function AuthPage({ onAuthSuccess, onClose }) {
+  usePageTitle("Sign In");
   const [mode, setMode] = useState("login"); // "login" | "signup"
   const [form, setForm] = useState({
     username: "",

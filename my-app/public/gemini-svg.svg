@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Top Wing of the 'C' -->
+  <path 
+    d="M 41 12 H 23 L 13 22 V 34 L 23 24 V 22 H 51 Z" 
+    fill="#FF4655"
+    stroke="#FF4655"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  
+  <!-- Bottom Wing of the 'C' -->
+  <path 
+    d="M 13 38 L 23 28 V 42 H 51 L 41 52 H 23 L 13 42 Z" 
+    fill="#FF4655"
+    stroke="#FF4655"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+</svg>

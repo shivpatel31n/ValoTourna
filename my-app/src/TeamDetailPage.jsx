@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -33,6 +34,8 @@ export default function TeamDetailPage({ user, onRequireAuth }) {
   const [joinMessage, setJoinMessage] = useState("");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
+
+  usePageTitle(team?.name);
 
   useEffect(() => {
     loadTeam();

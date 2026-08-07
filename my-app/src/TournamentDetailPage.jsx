@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Bracket from "./components/Bracket";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -85,6 +86,8 @@ export default function TournamentDetailPage({ user }) {
   const [loadingTournament, setLoadingTournament] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  usePageTitle(tournament?.title);
+
   const [registration, setRegistration] = useState(null);
   const [roster, setRoster] = useState([]);
   const [loadingRegistration, setLoadingRegistration] = useState(false);
@@ -96,6 +99,8 @@ export default function TournamentDetailPage({ user }) {
 
   const [teams, setTeams] = useState([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
+  const [participants, setParticipants] = useState({ players: [], teams: [] });
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [joinRequestTarget, setJoinRequestTarget] = useState(null);
   const [joinRequestMessage, setJoinRequestMessage] = useState("");
   const [sendingJoinRequest, setSendingJoinRequest] = useState(false);
@@ -172,10 +177,20 @@ export default function TournamentDetailPage({ user }) {
       .finally(() => setLoadingTeams(false));
   }
 
+  function loadParticipants() {
+    setLoadingParticipants(true);
+    fetch(`${API_BASE}/${id}/participants`)
+      .then((res) => res.json())
+      .then((data) => setParticipants({ players: data.players || [], teams: data.teams || [] }))
+      .catch(() => setParticipants({ players: [], teams: [] }))
+      .finally(() => setLoadingParticipants(false));
+  }
+
   useEffect(() => {
     loadTournament();
     loadRegistration();
     loadTeams();
+    loadParticipants();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
@@ -269,6 +284,7 @@ export default function TournamentDetailPage({ user }) {
       loadTournament();
       loadRegistration();
       loadTeams();
+      loadParticipants();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -287,6 +303,7 @@ export default function TournamentDetailPage({ user }) {
       setRoster([]);
       loadTournament();
       loadTeams();
+      loadParticipants();
     } finally {
       setSubmitting(false);
     }
@@ -308,6 +325,7 @@ export default function TournamentDetailPage({ user }) {
       loadTournament();
       loadRegistration();
       loadTeams();
+      loadParticipants();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -358,6 +376,7 @@ export default function TournamentDetailPage({ user }) {
       if (!res.ok) throw new Error(data.message || "Could not update that request.");
       loadRegistration();
       loadTeams();
+      loadParticipants();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -539,6 +558,73 @@ export default function TournamentDetailPage({ user }) {
             Bracket
           </h2>
           <Bracket tournamentSlug={id} isAdmin={!!user?.isAdmin} />
+        </div>
+
+        {/* Registered players / teams — public list of everyone confirmed */}
+        <div style={{ marginBottom: 40 }}>
+          <h2 className="td-h" style={{ fontSize: 18, marginBottom: 6 }}>
+            {requiredTeamSize === 1 ? "Registered players" : "Registered teams"}
+          </h2>
+          <p style={{ color: TOKENS.mute, fontSize: 13.5, marginBottom: 18 }}>
+            {requiredTeamSize === 1
+              ? "Everyone locked in for this tournament so far."
+              : "Every team currently confirmed for this tournament."}
+          </p>
+
+          {loadingParticipants && <p style={{ color: TOKENS.mute, fontSize: 14 }}>Loading…</p>}
+
+          {!loadingParticipants &&
+            requiredTeamSize === 1 &&
+            participants.players.length === 0 && (
+              <p style={{ color: TOKENS.mute, fontSize: 14 }}>No one has registered yet.</p>
+            )}
+
+          {!loadingParticipants &&
+            requiredTeamSize > 1 &&
+            participants.teams.length === 0 && (
+              <p style={{ color: TOKENS.mute, fontSize: 14 }}>No teams have registered yet.</p>
+            )}
+
+          {!loadingParticipants && requiredTeamSize === 1 && participants.players.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+              {participants.players.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    background: TOKENS.panel,
+                    border: `1px solid ${TOKENS.steel}`,
+                    padding: "14px 18px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span style={{ color: TOKENS.off, fontSize: 14.5 }}>{p.displayName}</span>
+                  <span className="td-mono" style={{ fontSize: 10.5, color: TOKENS.cyan, textTransform: "uppercase" }}>
+                    Confirmed
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loadingParticipants && requiredTeamSize > 1 && participants.teams.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+              {participants.teams.map((t) => (
+                <div key={t.teamId} style={{ background: TOKENS.panel, border: `1px solid ${TOKENS.steel}`, padding: 18 }}>
+                  <div className="td-h" style={{ fontSize: 16, marginBottom: 6 }}>
+                    {t.teamName}
+                  </div>
+                  <div className="td-mono" style={{ fontSize: 12, color: TOKENS.mute, marginBottom: 4 }}>
+                    Captain: {t.captain}
+                  </div>
+                  <div className="td-mono" style={{ fontSize: 12, color: TOKENS.cyan }}>
+                    {t.rosterSize}/{t.maxSize} players
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Join panel */}

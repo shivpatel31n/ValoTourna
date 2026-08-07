@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -20,6 +21,7 @@ function authHeaders() {
 }
 
 export default function AdminUsersPage({ user }) {
+  usePageTitle("Admin · Users");
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);

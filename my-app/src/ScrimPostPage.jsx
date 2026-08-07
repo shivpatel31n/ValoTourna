@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -32,6 +33,7 @@ function authHeaders() {
 }
 
 export default function ScrimPostPage({ user, onRequireAuth }) {
+  usePageTitle("Post a Scrim");
   const navigate = useNavigate();
   const [myTeam, setMyTeam] = useState(undefined); // undefined = loading, null = no team
   const [form, setForm] = useState({

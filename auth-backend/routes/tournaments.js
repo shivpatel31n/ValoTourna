@@ -359,6 +359,53 @@ router.get("/:slug/teams", async (req, res) => {
   }
 });
 
+// GET /api/tournaments/:slug/participants — public list of EVERYONE
+// confirmed for this tournament, solo free agents and every team
+// (unlike /teams, this isn't filtered to recruiting-only). Used to show
+// "who's registered" regardless of tournament format.
+router.get("/:slug/participants", async (req, res) => {
+  try {
+    const tournament = await Tournament.findOne({ slug: req.params.slug });
+    if (!tournament) return res.status(404).json({ message: "Tournament not found." });
+
+    const soloRegs = await Registration.find({
+      tournament: tournament._id,
+      type: "solo",
+      status: "confirmed",
+    }).sort({ createdAt: -1 });
+
+    const captainRegs = await Registration.find({
+      tournament: tournament._id,
+      type: "team",
+      isCaptain: true,
+    }).sort({ createdAt: -1 });
+
+    const players = soloRegs.map((r) => ({
+      id: r._id.toString(),
+      displayName: r.displayName,
+      joinedAt: r.joinedAt,
+    }));
+
+    const teams = await Promise.all(
+      captainRegs.map(async (r) => {
+        const confirmedCount = await countConfirmedRoster(tournament._id, r.teamId);
+        return {
+          teamId: r.teamId,
+          teamName: r.teamName,
+          captain: r.displayName,
+          rosterSize: confirmedCount,
+          maxSize: tournament.teamSize,
+        };
+      })
+    );
+
+    res.status(200).json({ players, teams });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch participants." });
+  }
+});
+
 // POST /api/tournaments/:slug/teams/:teamId/request-join — ask to join a
 // team that's already registered for this tournament (requires login)
 router.post("/:slug/teams/:teamId/request-join", requireAuth, async (req, res) => {

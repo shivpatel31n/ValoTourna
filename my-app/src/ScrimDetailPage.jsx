@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -21,6 +22,7 @@ function authHeaders() {
 }
 
 export default function ScrimDetailPage({ user, onRequireAuth }) {
+  usePageTitle("Scrim Details");
   const { id } = useParams();
   const navigate = useNavigate();
   const [scrim, setScrim] = useState(null);

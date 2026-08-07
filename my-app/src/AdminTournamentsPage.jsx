@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -46,6 +47,7 @@ function toLocalInputValue(isoString) {
 }
 
 export default function AdminTournamentsPage({ user }) {
+  usePageTitle("Admin · Tournaments");
   const navigate = useNavigate();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);

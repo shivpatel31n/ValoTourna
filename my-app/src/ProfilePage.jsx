@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -24,6 +25,7 @@ function authHeaders() {
 }
 
 export default function ProfilePage({ user, onRequireAuth, onLogout }) {
+  usePageTitle("My Profile");
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [history, setHistory] = useState([]);

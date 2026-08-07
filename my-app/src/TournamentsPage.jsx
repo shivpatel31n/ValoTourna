@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import Reveal from "./components/Reveal";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -36,6 +37,8 @@ function Badge({ status }) {
 }
 
 export default function TournamentsPage() {
+
+  usePageTitle("Tournaments");
   const navigate = useNavigate();
   // TODO: swap for a real `fetch("/api/tournaments")` call once that
   // endpoint exists. Using local mock data for now so the join flow can be

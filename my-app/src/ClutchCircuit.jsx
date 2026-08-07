@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const DISCORD_URL = "https://discord.gg/7RCDt277Y";
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import usePageTitle from "./hooks/usePageTitle";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -22,6 +23,7 @@ function authHeaders() {
 }
 
 export default function TeamCreatePage({ user, onRequireAuth }) {
+  usePageTitle("Create Team");
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
