@@ -1,9 +1,13 @@
 import { Router } from "express";
+
+// Models & Services
 import Team from "../models/Team.js";
 import ScrimRequest from "../models/ScrimRequest.js";
-import { requireAuth, optionalAuth } from "../middleware/authMiddleware.js";
 import { postToDiscord } from "../services/discordWebhook.js";
 import { notify } from "../services/notify.js";
+
+// Middleware
+import { requireAuth, optionalAuth } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
@@ -12,6 +16,10 @@ const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
 
 // Fields safe to expose about a user when they show up on a team roster
 const PUBLIC_USER_FIELDS = "username riotName riotTag rank region role";
+
+// ------------------------------------------------------------------
+// HELPER FUNCTIONS
+// ------------------------------------------------------------------
 
 function populateTeam(query) {
   return query
@@ -55,6 +63,10 @@ function serializeTeamForViewer(team, viewerId) {
   return json;
 }
 
+// ------------------------------------------------------------------
+// TEAM QUERY ROUTES (READ)
+// ------------------------------------------------------------------
+
 // GET /api/teams — browse teams, filter by region/role-needed/recruiting
 router.get("/", optionalAuth, async (req, res) => {
   try {
@@ -94,6 +106,10 @@ router.get("/:id", optionalAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch team." });
   }
 });
+
+// ------------------------------------------------------------------
+// CORE TEAM MANAGEMENT (CREATE, UPDATE, DELETE)
+// ------------------------------------------------------------------
 
 // POST /api/teams — create a team (requires login, one team per user)
 router.post("/", requireAuth, async (req, res) => {
@@ -228,6 +244,10 @@ router.delete("/:id", requireAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to disband team." });
   }
 });
+
+// ------------------------------------------------------------------
+// ROSTER & REQUEST MANAGEMENT
+// ------------------------------------------------------------------
 
 // POST /api/teams/:id/request-join — ask to join a team (requires login)
 router.post("/:id/request-join", requireAuth, async (req, res) => {

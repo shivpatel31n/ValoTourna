@@ -5,6 +5,9 @@ const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
 
 const userSchema = new mongoose.Schema(
   {
+    // ------------------------------------------------------------------
+    // CORE ACCOUNT INFO
+    // ------------------------------------------------------------------
     username: {
       type: String,
       required: true,
@@ -19,6 +22,15 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       unique: true,
       match: [/^\S+@\S+\.\S+$/, "invalid email format"],
+    },
+    
+    // ------------------------------------------------------------------
+    // AUTHENTICATION
+    // ------------------------------------------------------------------
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
     },
     passwordHash: {
       type: String,
@@ -37,11 +49,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
-    authProvider: {
-      type: String,
-      enum: ["local", "google"],
-      default: "local",
-    },
+
+    // ------------------------------------------------------------------
+    // VALORANT GAME DATA
+    // ------------------------------------------------------------------
     riotName: {
       type: String,
       required: true,
@@ -84,6 +95,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    // ------------------------------------------------------------------
+    // ROLES & MODERATION
+    // ------------------------------------------------------------------
     // Not settable via any signup/profile form — only ever changed by
     // editing the database directly. There's no self-service way to
     // become an admin, intentionally.
@@ -104,11 +119,13 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // ------------------------------------------------------------------
+    // PASSWORD RESET & EMAIL VERIFICATION
+    // ------------------------------------------------------------------
     // Set only while a "forgot password" reset is in flight. We store a
-    // hash of the token (never the raw token itself — same principle as
-    // passwordHash) so a database leak alone can't be used to reset
-    // someone's password; the raw token only ever exists in the emailed
-    // link and briefly in memory on this server.
+    // hash of the token (never the raw token itself) so a database leak 
+    // alone can't be used to reset someone's password.
     resetPasswordTokenHash: {
       type: String,
       default: null,
@@ -117,10 +134,8 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // Google accounts are verified automatically at creation — Google
-    // already confirmed the email is real before ever handing us a token
-    // (see googleAuth.js's email_verified check). Local accounts start
-    // unverified and get a link emailed at signup.
+    // Google accounts are verified automatically at creation.
+    // Local accounts start unverified and get a link emailed at signup.
     emailVerified: {
       type: Boolean,
       default: false,
@@ -141,6 +156,8 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
+        
+        // Strip all sensitive security hashes and tokens before sending to client
         delete ret.passwordHash;
         delete ret.resetPasswordTokenHash;
         delete ret.resetPasswordExpires;
@@ -153,6 +170,9 @@ const userSchema = new mongoose.Schema(
 
 // Case-insensitive uniqueness — "Kessu" and "kessu" count as the same
 // username, same pattern as Team.js's name index.
-userSchema.index({ username: 1 }, { collation: { locale: "en", strength: 2 }, unique: true });
+userSchema.index(
+  { username: 1 }, 
+  { collation: { locale: "en", strength: 2 }, unique: true }
+);
 
 export default mongoose.model("User", userSchema);

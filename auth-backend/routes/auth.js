@@ -2,13 +2,21 @@ import { Router } from "express";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
+// Models & Services
 import User from "../models/User.js";
 import { fetchRiotRank } from "../services/riotRank.js";
 import { verifyGoogleCredential } from "../services/googleAuth.js";
 import { sendMail } from "../services/mailer.js";
+
+// Middleware
 import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = Router();
+
+// ------------------------------------------------------------------
+// HELPER FUNCTIONS
+// ------------------------------------------------------------------
 
 function signToken(user) {
   return jwt.sign(
@@ -65,6 +73,10 @@ function userPayload(user) {
     emailVerified: user.emailVerified,
   };
 }
+
+// ------------------------------------------------------------------
+// LOCAL AUTHENTICATION ROUTES
+// ------------------------------------------------------------------
 
 // POST /api/auth/signup
 router.post("/signup", async (req, res) => {
@@ -160,6 +172,10 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({ message: "Something went wrong during login." });
   }
 });
+
+// ------------------------------------------------------------------
+// GOOGLE AUTHENTICATION ROUTES
+// ------------------------------------------------------------------
 
 // POST /api/auth/google — "Sign in with Google" for an existing account.
 // Receives the ID token credential from Google Identity Services on the
@@ -275,6 +291,10 @@ router.post("/google/complete-profile", async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------------
+// PASSWORD MANAGEMENT ROUTES
+// ------------------------------------------------------------------
+
 // POST /api/auth/forgot-password — always responds the same way regardless
 // of whether the email exists, so this can't be used to probe which
 // addresses are registered.
@@ -302,6 +322,7 @@ router.post("/forgot-password", async (req, res) => {
          <p>If this wasn't you, you can safely ignore this email.</p>`,
         `Someone requested a password reset for this email on ClutchCircuit, but this account signs in with Google.\n\nUse the "Continue with Google" button on the login page instead — there's no password to reset.\n\nIf this wasn't you, you can safely ignore this email.`
       ).catch((err) => console.error("[forgot-password] Failed to send Google-account notice:", err.message));
+      
       return res.status(200).json(genericResponse);
     }
 
@@ -342,6 +363,7 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
+    
     if (!email || !token || !newPassword) {
       return res.status(400).json({ message: "Missing required fields." });
     }
@@ -380,6 +402,7 @@ router.post("/reset-password", async (req, res) => {
 router.post("/change-password", requireAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
+    
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: "Current and new password are both required." });
     }
@@ -411,10 +434,15 @@ router.post("/change-password", requireAuth, async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------------
+// EMAIL VERIFICATION ROUTES
+// ------------------------------------------------------------------
+
 // POST /api/auth/verify-email — completes verification via the emailed link
 router.post("/verify-email", async (req, res) => {
   try {
     const { email, token } = req.body;
+    
     if (!email || !token) {
       return res.status(400).json({ message: "Missing required fields." });
     }
