@@ -16,7 +16,7 @@ const TOKENS = {
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/scrims`;
 const TEAMS_API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/teams`;
-const DISCORD_URL = "https://discord.gg/7RCDt277Y";
+const DISCORD_URL = "https://discord.gg/abH6HNCeec";
 
 const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
 const RANKS = [

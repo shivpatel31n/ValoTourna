@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import usePageTitle from "./hooks/usePageTitle";
 
-const DISCORD_URL = "https://discord.gg/7RCDt277Y";
+const DISCORD_URL = "https://discord.gg/abH6HNCeec";
 
 const TOKENS = {
   ink: "#0B0D0F",
@@ -826,7 +826,7 @@ export default function ClutchCircuit({ user, onProfileClick, onRequireAuth }) {
                 n: "01",
                 title: "Pick-up lobbies",
                 body: "Post your rank and role in the queue channel and get matched into a 10-stack — no waiting on a full tournament bracket.",
-                link: "https://discord.gg/x2AGYXjJw",
+                link: "https://discord.gg/abH6HNCeec",
                 linkLabel: "Join the queue →",
                 external: true,
               },

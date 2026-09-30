@@ -15,7 +15,7 @@ const TOKENS = {
 };
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/tournaments`;
-const TOURNAMENT_REGISTRATION_DISCORD_URL = "https://discord.gg/KFaGdfd2E";
+const TOURNAMENT_REGISTRATION_DISCORD_URL = "https://discord.gg/abH6HNCeec";
 
 function RegistrationError({ message }) {
   if (!message) return null;

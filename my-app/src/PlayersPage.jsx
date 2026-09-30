@@ -15,7 +15,7 @@ const TOKENS = {
 };
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/players`;
-const DISCORD_URL = "https://discord.gg/7RCDt277Y";
+const DISCORD_URL = "https://discord.gg/abH6HNCeec";
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
 const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
