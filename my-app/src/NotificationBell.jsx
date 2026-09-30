@@ -11,7 +11,7 @@ const TOKENS = {
   mute: "#8B9096",
 };
 
-const API_BASE = "http://localhost:5000/api/notifications";
+const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/notifications`;
 const POLL_INTERVAL_MS = 30000;
 
 function authHeaders() {

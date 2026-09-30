@@ -13,7 +13,7 @@ const TOKENS = {
 };
 
 // Point this at wherever your Express server runs
-const API_BASE = "http://localhost:5000/api/auth";
+const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
 // Set VITE_GOOGLE_CLIENT_ID in my-app/.env — create one at
 // https://console.cloud.google.com/apis/credentials (OAuth client ID, Web
 // application type; add this app's origin under "Authorized JavaScript

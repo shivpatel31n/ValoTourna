@@ -48,7 +48,7 @@ export default function TournamentsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/tournaments")
+    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/tournaments`)
       .then((res) => res.json())
       .then((data) => setTournaments(data.tournaments || []))
       .catch(() => setError("Could not load tournaments. Is the backend running?"))

@@ -12,8 +12,8 @@ const TOKENS = {
   mute: "#8B9096",
 };
 
-const SCRIMS_API_BASE = "http://localhost:5000/api/scrims";
-const TEAMS_API_BASE = "http://localhost:5000/api/teams";
+const SCRIMS_API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/scrims`;
+const TEAMS_API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/teams`;
 const REGIONS = ["NA", "EU", "APAC", "KR", "LATAM", "BR"];
 const RANKS = [
   "Iron 1", "Iron 2", "Iron 3",

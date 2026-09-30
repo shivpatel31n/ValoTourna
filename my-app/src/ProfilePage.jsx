@@ -13,9 +13,9 @@ const TOKENS = {
   mute: "#8B9096",
 };
 
-const API_BASE = "http://localhost:5000/api/players";
-const AUTH_API_BASE = "http://localhost:5000/api/auth";
-const TOURNAMENTS_API_BASE = "http://localhost:5000/api/tournaments";
+const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/players`;
+const AUTH_API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
+const TOURNAMENTS_API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/tournaments`;
 
 const ROLES = ["Duelist", "Controller", "Initiator", "Sentinel"];
 
